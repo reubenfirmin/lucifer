@@ -1,6 +1,6 @@
 # lucifer
 
-The goal of this tool is to parse lsof output, and provide useful summarization. Right now all it does is provide list of processes ordered by the number of open files, but once the basics are stabilized additional functionality will be added.
+The goal of this tool is to parse lsof output, and provide useful summarization. Right now all it does is provide a list of processes ordered by the number of open files. More in progress.
 
 ## building
 
