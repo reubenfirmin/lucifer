@@ -7,6 +7,9 @@ import kotlinx.cli.*
 import platform.posix.*
 import platform.posix.FILE
 
+const val MAX_READ = 4096
+val buffer = ByteArray(MAX_READ)
+
 /**
  * @return if ProcessRecord is populated, consume it. Always pass the returned ParseState to the next invocation
  */
@@ -50,40 +53,12 @@ fun finish(state: ParseState) =
     }
 
 /**
- * XXX work around kotlin-native bug where readlines doesn't split on 0xA!
- * @return lines read from stdin, plus possibly a line fragment that didn't end with line terminator (in this case
- * skip processing the last line of the array). empty array if EOF
+ * Replace kotlin's impl of readline
+ * @return null if we hit EOF
  */
-fun stdinBuffer(lsof: CPointer<FILE>, prevFragment: String?): Triple<List<String>, String?, Int> {
-    val buffer = ByteArray(4096)
-    val str = fgets(buffer.refTo(0), buffer.size, lsof)?.toKString() ?: ""
-
-    return if (buffer.isNotEmpty()) {
-        val lines = str.split(Char(0xA)).toMutableList()
-        if (prevFragment != null) {
-            val newLine = prevFragment + lines[0]
-            // edge case. kotlin readline dropped a newline char where it should actually have existed, so we need
-            // to add it back. we can detect this with this known pattern. there may be others
-            if (wontexist.matches(newLine)) {
-                lines.add(0, prevFragment)
-            // otherwise, we can safely prepend the fragment to the first of the lines we're dealing with
-            } else {
-                lines[0] = newLine
-            }
-        }
-        // the buffer didn't end with newline (expected most of the time) so handle the partial content specially
-        // so that we can process it next time around
-        if (!str.endsWith(Char(0xA))) {
-            Triple(lines, str.substring(str.lastIndexOf(Char(0xA)) + 1), str.length)
-        } else {
-            Triple(lines, null, str.length)
-        }
-    } else if (prevFragment != null) {
-        println("ERROR - end of input, but last line didn't end with NL: $prevFragment")
-        Triple(listOf(), null, 0)
-    } else {
-        Triple(listOf(), null, 0)
-    }
+fun readLine(): String? {
+    val read = fgets(buffer.refTo(0), MAX_READ, stdin)?.toKString() ?: return null
+    return read.substring(0, read.length - 1)
 }
 
 fun compare(oldRecord: ProcessRecord, newRecord: ProcessRecord) {
@@ -117,7 +92,6 @@ fun compare(oldRecord: ProcessRecord, newRecord: ProcessRecord) {
 fun printErr(message: String) {
     fprintf(stderr!!, message + "\n")
     fflush(stderr!!)
-
 }
 
 fun main(args: Array<String>) {
@@ -133,42 +107,29 @@ fun main(args: Array<String>) {
 
     // lsof can return dupe records :/
     val processMetadata: MutableMap<Int, ProcessRecord> = mutableMapOf()
-    var parsed = 0
     var reads = 0
-    var prevFragment: String? = null
-    var kotlinBugExists = false
     var lineState: Pair<ParseState, ProcessRecord?> = ParseState.new() to null
-
-    val lsof: CPointer<FILE> = popen("lsof -E", "r")!!
 
     // read from stdin until eof
     while (true) {
-        val buffer = stdinBuffer(lsof, prevFragment)
+        val line = readLine()
         reads ++
-        prevFragment = buffer.second // pass any tail to the next buffer
-        parsed += buffer.third
-        kotlinBugExists = kotlinBugExists || buffer.first.size > 0
 
-        if (buffer.first.isNotEmpty()) {
-            val lastIdx = buffer.first.size - 1
-            buffer.first.forEachIndexed { idx, line ->
-                // if we have a fragment, ignore the last line (since we'll process that next time)
-                if (prevFragment == null || idx < lastIdx) {
-                    if (err) {
-                        printErr(line)
-                    }
-                    lineState = parseLine(line, lineState.first)
-                    if (lineState.second != null) {
-                        val newRecord = lineState.second!!
-                        if (!lineState.first.initialized) {
-                            throw Exception("ERROR - trying to add record that wasn't initialized")
-                        }
-                        if (debug && processMetadata.containsKey(newRecord.pid) && processMetadata[newRecord.pid] != newRecord) {
-                            compare(processMetadata[newRecord.pid]!!, newRecord)
-                        }
-                        processMetadata[newRecord.pid] = newRecord
-                    }
+        if (line != null) {
+            if (err) {
+                printErr(line)
+            }
+            lineState = parseLine(line, lineState.first)
+
+            if (lineState.second != null) {
+                val newRecord = lineState.second!!
+                if (!lineState.first.initialized) {
+                    throw Exception("ERROR - trying to add record that wasn't initialized")
                 }
+                if (debug && processMetadata.containsKey(newRecord.pid) && processMetadata[newRecord.pid] != newRecord) {
+                    compare(processMetadata[newRecord.pid]!!, newRecord)
+                }
+                processMetadata[newRecord.pid] = newRecord
             }
         } else {
             val last = finish(lineState.first)
@@ -182,13 +143,9 @@ fun main(args: Array<String>) {
                     println("${it.pid}\t${it.user}\t${it.command}\t\t\t${it.files.size}")
                 }
             println()
-            println("DONE; parsed $parsed; reads $reads")
-            if (!kotlinBugExists) {
-                println("Kotlin bug may have been fixed")
-            }
+            println("DONE; reads $reads")
             break
         }
-        pclose(lsof)
     }
 }
 
