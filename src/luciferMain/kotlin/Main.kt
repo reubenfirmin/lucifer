@@ -1,5 +1,7 @@
 import Col.*
-import platform.posix.read
+import platform.posix.fflush
+import platform.posix.fprintf
+import platform.posix.stderr
 
 /**
  * @return if ProcessRecord is populated, consume it. Always pass the returned ParseState to the next invocation
@@ -44,18 +46,26 @@ fun finish(state: ParseState) =
 
 /**
  * XXX work around kotlin-native bug where readlines doesn't split on 0xA!
- * @return lines read from stdin, plus possibly a line fragment that didn't end with line terminator. empty list if
- * EOF
+ * @return lines read from stdin, plus possibly a line fragment that didn't end with line terminator (in this case
+ * skip processing the last line of the array). empty array if EOF
  */
-fun stdinBuffer(prevFragment: String?): Triple<Array<String>, String?, Int> {
+fun stdinBuffer(prevFragment: String?): Triple<List<String>, String?, Int> {
     val buffer = readLine()
     return if (buffer != null) {
-        val lines = buffer.split(Char(0xA)).toTypedArray()
+        val lines = buffer.split(Char(0xA)).toMutableList()
         if (prevFragment != null) {
-            val old = lines[0]
-            lines[0] = prevFragment + lines[0]
-            println("Replaced [$old] with [${lines[0]}]")
+            val newLine = prevFragment + lines[0]
+            // edge case. kotlin readline dropped a newline char where it should actually have existed, so we need
+            // to add it back. we can detect this with this known pattern. there may be others
+            if (wontexist.matches(newLine)) {
+                lines.add(0, prevFragment)
+            // otherwise, we can safely prepend the fragment to the first of the lines we're dealing with
+            } else {
+                lines[0] = newLine
+            }
         }
+        // the buffer didn't end with newline (expected most of the time) so handle the partial content specially
+        // so that we can process it next time around
         if (!buffer.endsWith(Char(0xA))) {
             Triple(lines, buffer.substring(buffer.lastIndexOf(Char(0xA)) + 1), buffer.length)
         } else {
@@ -63,10 +73,43 @@ fun stdinBuffer(prevFragment: String?): Triple<Array<String>, String?, Int> {
         }
     } else if (prevFragment != null) {
         println("ERROR - end of input, but last line didn't end with NL: $prevFragment")
-        Triple(arrayOf(), null, 0)
+        Triple(listOf(), null, 0)
     } else {
-        Triple(arrayOf(), null, 0)
+        Triple(listOf(), null, 0)
     }
+}
+
+fun compare(oldRecord: ProcessRecord, newRecord: ProcessRecord) {
+    println("ERROR - duplicate process records with differing content ---")
+    println("${newRecord.pid} || ${oldRecord.pid}")
+    if (newRecord.command != oldRecord.command) {
+        println("${newRecord.command} || ${oldRecord.command}")
+    }
+    if (newRecord.user != oldRecord.user) {
+        println("${newRecord.user} || ${oldRecord.user}")
+    }
+    if (newRecord.files.size != oldRecord.files.size) {
+        println("${newRecord.files.size} || ${oldRecord.files.size}")
+    }
+    for (file in newRecord.files.zip(oldRecord.files)) {
+        if (file.first != file.second) {
+            if (file.first.name != file.second.name) {
+                println("${file.first.name} ${file.second.name}")
+                println("${file.first.name.length} ${file.second.name.length}")
+            }
+            if (file.first.descriptor != file.second.descriptor) {
+                println("${file.first.descriptor} ${file.second.descriptor}")
+            }
+            if (file.first.type != file.second.type) {
+                println("${file.first.type} ${file.second.type}")
+            }
+        }
+    }
+}
+
+fun printErr(message: String) {
+    fprintf(stderr!!, message + "\n")
+    fflush(stderr!!)
 }
 
 fun main() {
@@ -77,6 +120,7 @@ fun main() {
     var prevFragment: String? = null
     var kotlinBugExists = false
     var lineState: Pair<ParseState, ProcessRecord?> = ParseState.new() to null
+
     // read from stdin until eof
     while (true) {
         val buffer = stdinBuffer(prevFragment)
@@ -84,28 +128,24 @@ fun main() {
         prevFragment = buffer.second // pass any tail to the next buffer
         parsed += buffer.third
         kotlinBugExists = kotlinBugExists || buffer.first.size > 0
+
         if (buffer.first.isNotEmpty()) {
-            buffer.first.forEach { line ->
-                lineState = parseLine(line, lineState.first)
-                if (lineState.second != null) {
-                    val newRecord = lineState.second!!
-                    if (!lineState.first.initialized) {
-                        throw Exception("ERROR - trying to add record that wasn't initialized")
+            val lastIdx = buffer.first.size - 1
+            buffer.first.forEachIndexed { idx, line ->
+                // if we have a fragment, ignore the last line (since we'll process that next time)
+                if (prevFragment == null || idx < lastIdx) {
+                    //printErr(line)
+                    lineState = parseLine(line, lineState.first)
+                    if (lineState.second != null) {
+                        val newRecord = lineState.second!!
+                        if (!lineState.first.initialized) {
+                            throw Exception("ERROR - trying to add record that wasn't initialized")
+                        }
+                        if (processMetadata.containsKey(newRecord.pid) && processMetadata[newRecord.pid] != newRecord) {
+                            compare(processMetadata[newRecord.pid]!!, newRecord)
+                        }
+                        processMetadata[newRecord.pid] = newRecord
                     }
-                    if (processMetadata.containsKey(newRecord.pid) && processMetadata[newRecord.pid] != newRecord) {
-                        println("ERROR - duplicate process records with differing content")
-//                        val old = processMetadata[newRecord.pid]!!
-//                        println("${newRecord.pid} || ${old.pid}")
-//                        println("${newRecord.command} || ${old.command}")
-//                        println("${newRecord.user} || ${old.user}")
-//                        println("${newRecord.files.size} || ${old.files.size}")
-//                        for (file in newRecord.files.zip(old.files)) {
-//                            if (file.first != file.second) {
-//                                println("${file.first.name} ${file.first.descriptor} ${file.first.type} || ${file.second.name} ${file.second.descriptor} ${file.second.type}")
-//                            }
-//                        }
-                    }
-                    processMetadata[newRecord.pid] = newRecord
                 }
             }
         } else {
@@ -169,3 +209,6 @@ data class ParseState(var record: ProcessRecord,
         fun new() = ParseState(ProcessRecord(), false, null, null, null)
     }
 }
+
+// this will never match
+val wontexist = "^[a-zA-Z] [a-zA-Z]".toRegex()
