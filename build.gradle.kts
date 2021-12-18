@@ -1,5 +1,7 @@
+//ext.kotlin.version = "1.6.10"
+
 plugins {
-    kotlin("multiplatform") version "1.5.10"
+    kotlin("multiplatform") version "1.6.10"
 }
 
 group = "me.rfirmin"
@@ -20,6 +22,7 @@ kotlin {
     }
 
     luciferTarget.apply {
+        compilations["main"].enableEndorsedLibs = false
         binaries {
             executable(listOf(DEBUG, RELEASE)) {
                 entryPoint = "main"
@@ -27,7 +30,11 @@ kotlin {
         }
     }
     sourceSets {
-        val luciferMain by getting
+        val luciferMain by getting {
+            dependencies {
+                api("org.jetbrains.kotlinx:kotlinx-cli:0.3.4")
+            }
+        }
         val luciferTest by getting
     }
 }

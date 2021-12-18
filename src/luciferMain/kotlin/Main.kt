@@ -2,6 +2,7 @@ import Col.*
 import platform.posix.fflush
 import platform.posix.fprintf
 import platform.posix.stderr
+import kotlinx.cli.*
 
 /**
  * @return if ProcessRecord is populated, consume it. Always pass the returned ParseState to the next invocation
@@ -110,9 +111,19 @@ fun compare(oldRecord: ProcessRecord, newRecord: ProcessRecord) {
 fun printErr(message: String) {
     fprintf(stderr!!, message + "\n")
     fflush(stderr!!)
+
 }
 
-fun main() {
+fun main(args: Array<String>) {
+    println("Lucifer - parsing input...")
+
+    val parser = ArgParser("Lucifer")
+    val err by parser.option(ArgType.Boolean, shortName = "e",
+        description = "Output parsed lines to stderr").default(false)
+    val debug by parser.option(ArgType.Boolean, shortName = "d",
+        description = "Output differences between files to stdout").default(false)
+    parser.parse(args)
+
     // lsof can return dupe records :/
     val processMetadata: MutableMap<Int, ProcessRecord> = mutableMapOf()
     var parsed = 0
@@ -134,14 +145,16 @@ fun main() {
             buffer.first.forEachIndexed { idx, line ->
                 // if we have a fragment, ignore the last line (since we'll process that next time)
                 if (prevFragment == null || idx < lastIdx) {
-                    //printErr(line)
+                    if (err) {
+                        printErr(line)
+                    }
                     lineState = parseLine(line, lineState.first)
                     if (lineState.second != null) {
                         val newRecord = lineState.second!!
                         if (!lineState.first.initialized) {
                             throw Exception("ERROR - trying to add record that wasn't initialized")
                         }
-                        if (processMetadata.containsKey(newRecord.pid) && processMetadata[newRecord.pid] != newRecord) {
+                        if (debug && processMetadata.containsKey(newRecord.pid) && processMetadata[newRecord.pid] != newRecord) {
                             compare(processMetadata[newRecord.pid]!!, newRecord)
                         }
                         processMetadata[newRecord.pid] = newRecord
@@ -211,4 +224,4 @@ data class ParseState(var record: ProcessRecord,
 }
 
 // this will never match
-val wontexist = "^[a-zA-Z] [a-zA-Z]".toRegex()
+val wontexist = "^[a-zA-Z] [a-zA-Z].*$".toRegex()
