@@ -16,14 +16,18 @@ lsof -F | ./lucifer
 
 ## status
 
-Alpha. It works for the most part, but results should be taken to be approximate.
+Beta. Produces basic output.
 
 ## roadmap
 
-* Fix string parsing issues to ensure no data is lost
+* Formatting for main summary by process
+ * ansi colors  
+ * --detail flag to list all files under each process
+ * resolve user ids
 * Summarize by file type
-* Resolve user ids
+* Summarize by user
+* Get full command (and other metadata) from ps
 
 # kotlin-native
 
-This project is an exploration of kotlin-native, which is basically functional, but has some real warts. The biggest of which (for the sake of this project) is that readLine() does not split on newline (0xA), as it does on a JVM platform, so the code is jumping through hoops to make sure data isn't lost. There appears to be a further bug in that readLine is losing some values - but that's currently being worked on.
+This project is an exploration of kotlin-native, which is basically functional, but has some real warts. The biggest that I encountered is that readLine() does not split on newline (0xA); after spending a couple of hours trying to massage the broken output I eventually realized that I could just call C's stdio `fgets` function, which reads a line. Nice. 
