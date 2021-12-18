@@ -1,15 +1,19 @@
 import Col.*
-import platform.posix.fflush
-import platform.posix.fprintf
-import platform.posix.stderr
+import kotlinx.cinterop.CPointer
+import kotlinx.cinterop.readBytes
+import kotlinx.cinterop.refTo
+import kotlinx.cinterop.toKString
 import kotlinx.cli.*
+import platform.posix.*
+import platform.posix.FILE
 
 /**
  * @return if ProcessRecord is populated, consume it. Always pass the returned ParseState to the next invocation
  */
 fun parseLine(line: String, parseState: ParseState? = null): Pair<ParseState, ProcessRecord?>  {
     val state = parseState ?: ParseState.new()
-    val prefix = line[0]
+    // XXX hack
+    val prefix = if (line.length > 0) { line[0] } else { '0' }
     val col = Col.fromPrefix(prefix)
     return if (col != null) {
         // we found the next record, so output the one we're working on
@@ -25,7 +29,7 @@ fun parseLine(line: String, parseState: ParseState? = null): Pair<ParseState, Pr
         }
         try {
             state.initialized = true
-            col.mutator(state, line.substring(1))
+            col.mutator(state, if (line.length > 1) { line.substring(1) } else { "" })
         } catch (e: Exception) {
             println("Error parsing $col")
             throw e
@@ -39,7 +43,7 @@ fun parseLine(line: String, parseState: ParseState? = null): Pair<ParseState, Pr
 fun finish(state: ParseState) =
     if (state.initialized) {
         // hack
-        FILE.mutator(state, "")
+        Col.FILE.mutator(state, "")
         state.record
     } else {
         null
@@ -50,10 +54,12 @@ fun finish(state: ParseState) =
  * @return lines read from stdin, plus possibly a line fragment that didn't end with line terminator (in this case
  * skip processing the last line of the array). empty array if EOF
  */
-fun stdinBuffer(prevFragment: String?): Triple<List<String>, String?, Int> {
-    val buffer = readLine()
-    return if (buffer != null) {
-        val lines = buffer.split(Char(0xA)).toMutableList()
+fun stdinBuffer(lsof: CPointer<FILE>, prevFragment: String?): Triple<List<String>, String?, Int> {
+    val buffer = ByteArray(4096)
+    val str = fgets(buffer.refTo(0), buffer.size, lsof)?.toKString() ?: ""
+
+    return if (buffer.isNotEmpty()) {
+        val lines = str.split(Char(0xA)).toMutableList()
         if (prevFragment != null) {
             val newLine = prevFragment + lines[0]
             // edge case. kotlin readline dropped a newline char where it should actually have existed, so we need
@@ -67,10 +73,10 @@ fun stdinBuffer(prevFragment: String?): Triple<List<String>, String?, Int> {
         }
         // the buffer didn't end with newline (expected most of the time) so handle the partial content specially
         // so that we can process it next time around
-        if (!buffer.endsWith(Char(0xA))) {
-            Triple(lines, buffer.substring(buffer.lastIndexOf(Char(0xA)) + 1), buffer.length)
+        if (!str.endsWith(Char(0xA))) {
+            Triple(lines, str.substring(str.lastIndexOf(Char(0xA)) + 1), str.length)
         } else {
-            Triple(lines, null, buffer.length)
+            Triple(lines, null, str.length)
         }
     } else if (prevFragment != null) {
         println("ERROR - end of input, but last line didn't end with NL: $prevFragment")
@@ -117,6 +123,7 @@ fun printErr(message: String) {
 fun main(args: Array<String>) {
     println("Lucifer - parsing input...")
 
+    // TODO - this added over 1MB to the output size(!)
     val parser = ArgParser("Lucifer")
     val err by parser.option(ArgType.Boolean, shortName = "e",
         description = "Output parsed lines to stderr").default(false)
@@ -132,9 +139,11 @@ fun main(args: Array<String>) {
     var kotlinBugExists = false
     var lineState: Pair<ParseState, ProcessRecord?> = ParseState.new() to null
 
+    val lsof: CPointer<FILE> = popen("lsof -E", "r")!!
+
     // read from stdin until eof
     while (true) {
-        val buffer = stdinBuffer(prevFragment)
+        val buffer = stdinBuffer(lsof, prevFragment)
         reads ++
         prevFragment = buffer.second // pass any tail to the next buffer
         parsed += buffer.third
@@ -179,6 +188,7 @@ fun main(args: Array<String>) {
             }
             break
         }
+        pclose(lsof)
     }
 }
 
