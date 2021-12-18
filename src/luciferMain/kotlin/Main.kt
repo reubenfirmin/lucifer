@@ -1,11 +1,7 @@
-import Col.*
-import kotlinx.cinterop.CPointer
-import kotlinx.cinterop.readBytes
+import Field.*
 import kotlinx.cinterop.refTo
 import kotlinx.cinterop.toKString
-import kotlinx.cli.*
 import platform.posix.*
-import platform.posix.FILE
 
 const val MAX_READ = 4096
 val buffer = ByteArray(MAX_READ)
@@ -16,8 +12,8 @@ val buffer = ByteArray(MAX_READ)
 fun parseLine(line: String, parseState: ParseState? = null): Pair<ParseState, ProcessRecord?>  {
     val state = parseState ?: ParseState.new()
     // XXX hack
-    val prefix = if (line.length > 0) { line[0] } else { '0' }
-    val col = Col.fromPrefix(prefix)
+    val prefix = if (line.isNotEmpty()) { line[0] } else { '0' }
+    val col = Field.fromPrefix(prefix)
     return if (col != null) {
         // we found the next record, so output the one we're working on
         val record = if (col == PID && state.initialized) {
@@ -46,7 +42,7 @@ fun parseLine(line: String, parseState: ParseState? = null): Pair<ParseState, Pr
 fun finish(state: ParseState) =
     if (state.initialized) {
         // hack
-        Col.FILE.mutator(state, "")
+        Field.FILE.mutator(state, "")
         state.record
     } else {
         null
@@ -61,60 +57,90 @@ fun readLine(): String? {
     return read.substring(0, read.length - 1)
 }
 
+/**
+ * Helper function for debugging duplicate record differences.
+ */
 fun compare(oldRecord: ProcessRecord, newRecord: ProcessRecord) {
-    println("ERROR - duplicate process records with differing content ---")
+    println("ERROR(?) - duplicate process records with differing content ---")
     println("${newRecord.pid} || ${oldRecord.pid}")
     if (newRecord.command != oldRecord.command) {
-        println("${newRecord.command} || ${oldRecord.command}")
+        println("COMMAND -- ${newRecord.command} || ${oldRecord.command}")
     }
     if (newRecord.user != oldRecord.user) {
-        println("${newRecord.user} || ${oldRecord.user}")
+        println("USER -- ${newRecord.user} || ${oldRecord.user}")
     }
     if (newRecord.files.size != oldRecord.files.size) {
-        println("${newRecord.files.size} || ${oldRecord.files.size}")
+        println("FILE COUNT -- ${newRecord.files.size} || ${oldRecord.files.size}")
     }
     for (file in newRecord.files.zip(oldRecord.files)) {
         if (file.first != file.second) {
             if (file.first.name != file.second.name) {
-                println("${file.first.name} ${file.second.name}")
-                println("${file.first.name.length} ${file.second.name.length}")
+                println("FILE NAME -- ${file.first.name} ${file.second.name}")
             }
             if (file.first.descriptor != file.second.descriptor) {
-                println("${file.first.descriptor} ${file.second.descriptor}")
+                println("FILE DESCRIPTOR -- ${file.first.descriptor} ${file.second.descriptor}")
             }
             if (file.first.type != file.second.type) {
-                println("${file.first.type} ${file.second.type}")
+                println("FILE TYPE -- ${file.first.type} ${file.second.type}")
             }
         }
     }
 }
 
+/**
+ * Print to stderr.
+ */
 fun printErr(message: String) {
     fprintf(stderr!!, message + "\n")
     fflush(stderr!!)
 }
 
+/**
+ * lsof -E can return duplicate "records" for a given process, although these records can have differing sets of files,
+ * because they were sampled at different points in time (apparently?). Determine which is the better record to store,
+ * and update the records map. (It's possible we could decide to merge them in future.)
+ */
+fun storeRecord(newRecord: ProcessRecord, records: MutableMap<Int, ProcessRecord>, debug: Boolean) {
+
+    val toAdd = if (records.containsKey(newRecord.pid) && records[newRecord.pid] != newRecord) {
+
+        val existing = records[newRecord.pid]!!
+        if (debug) {
+            compare(existing, newRecord)
+        }
+        if (existing.files.size > newRecord.files.size) {
+            existing
+        } else {
+            newRecord
+        }
+    } else {
+        newRecord
+    }
+
+    records[newRecord.pid] = toAdd
+}
+
 fun main(args: Array<String>) {
     println("Lucifer - parsing input...")
 
-    // TODO - this added over 1MB to the output size(!)
-    val parser = ArgParser("Lucifer")
-    val err by parser.option(ArgType.Boolean, shortName = "e",
-        description = "Output parsed lines to stderr").default(false)
-    val debug by parser.option(ArgType.Boolean, shortName = "d",
-        description = "Output differences between files to stdout").default(false)
-    parser.parse(args)
+    // TODO brutal hack for now. there is an arg parser available in kotlinx, but it adds 1MB to the compiled binary
+    val debug = args.contains("--debug")
+    val err = args.contains("--err")
 
-    // lsof can return dupe records :/
     val processMetadata: MutableMap<Int, ProcessRecord> = mutableMapOf()
-    var reads = 0
     var lineState: Pair<ParseState, ProcessRecord?> = ParseState.new() to null
 
-    // read from stdin until eof
+    // General algorithm:
+    //
+    // Read a line at a time until EOF.
+    //
+    // Every time we hit a line starting with "p" (pid / process id), then store the record we've been accumulating in
+    // processState, and start storing a new record.
+    //
+    // Records are variable length, because there is a 1:N relationship between processes and files (i.e. files are
+    // listed within the overall process record.)
     while (true) {
         val line = readLine()
-        reads ++
-
         if (line != null) {
             if (err) {
                 printErr(line)
@@ -122,20 +148,18 @@ fun main(args: Array<String>) {
             lineState = parseLine(line, lineState.first)
 
             if (lineState.second != null) {
-                val newRecord = lineState.second!!
                 if (!lineState.first.initialized) {
                     throw Exception("ERROR - trying to add record that wasn't initialized")
                 }
-                if (debug && processMetadata.containsKey(newRecord.pid) && processMetadata[newRecord.pid] != newRecord) {
-                    compare(processMetadata[newRecord.pid]!!, newRecord)
-                }
-                processMetadata[newRecord.pid] = newRecord
+                storeRecord(lineState.second!!, processMetadata, debug)
             }
         } else {
             val last = finish(lineState.first)
             if (last != null) {
-                processMetadata[last.pid] = last
+                storeRecord(last, processMetadata, debug)
             }
+
+            // reporting
             processMetadata
                 .values
                 .sortedByDescending { it.files.size }
@@ -143,14 +167,17 @@ fun main(args: Array<String>) {
                     println("${it.pid}\t${it.user}\t${it.command}\t\t\t${it.files.size}")
                 }
             println()
-            println("DONE; reads $reads")
+            println("DONE")
             break
         }
     }
 }
 
-enum class Col(private val prefix: Char,
-               val mutator: (ParseState, String) -> Unit) {
+/**
+ * Fields we are interested in, and associated parse logic.
+ */
+enum class Field(private val prefix: Char,
+                 val mutator: (ParseState, String) -> Unit) {
     COMMAND('c', {p, s -> p.record.command = s}),
     PID('p', {p, s -> p.record.pid = s.toInt() }),
     USER('u', {p, s -> p.record.user = s}),
@@ -173,22 +200,29 @@ enum class Col(private val prefix: Char,
     }
 }
 
+/**
+ * A record describing a process' state.
+ */
 data class ProcessRecord(var pid: Int = 0,
                         var command: String = "",
                         var user: String = "",
                         var files: MutableList<FileRecord> = mutableListOf())
 
+/**
+ * A record describing a file associated with a process.
+ */
 data class FileRecord(val descriptor: String, val type: String, val name: String)
 
+/**
+ * A mutable state object that can be passed around when iterating through the output.
+ */
 data class ParseState(var record: ProcessRecord,
                       var initialized: Boolean,
                       var descriptor: String?,
                       var type: String?,
                       var name: String?) {
+
     companion object {
         fun new() = ParseState(ProcessRecord(), false, null, null, null)
     }
 }
-
-// this will never match
-val wontexist = "^[a-zA-Z] [a-zA-Z].*$".toRegex()
