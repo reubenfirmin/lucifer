@@ -4,19 +4,63 @@ import model.ProcessRecord
 import kotlin.native.concurrent.freeze
 
 /**
+ * To use - call parseLine repeatedly until it returns false. Then call yield to get the parsed data.
+ *
  * @param debug true to print record differences to stdout
  */
 class LSOFParser(private val debug: Boolean) {
 
+    private var parseState = ParseState.new()
     private val records: MutableMap<Int, ProcessRecord> = mutableMapOf()
+
+    /**
+     * @return false if encountered null (indicating no more lines)
+     */
+    fun parseLine(line: String?): Boolean  {
+        return if (line == null) {
+            finish()
+            false
+        } else {
+            val prefix = if (line.isNotEmpty()) { line[0] } else { null }
+            val col = prefix?.let { Field.fromPrefix(it) }
+            if (col != null) {
+                // we found the next record, so output the one we're working on
+                if (col == PID && parseState.initialized) {
+                    storeRecord(parseState.record.copy(
+                        files = parseState.record.files.sortedBy { it.name }.toMutableList()))
+
+                    parseState.clear()
+                }
+
+                try {
+                    parseState.initialized = true
+                    col.mutator(parseState, if (line.length > 1) { line.substring(1) } else { "" })
+                } catch (e: Exception) {
+                    println("Error parsing $col")
+                    throw e
+                }
+            }
+            true
+        }
+    }
+
+    // freeze is a kotlin native thing
+    fun yieldData() = records.toMap().freeze()
+
+    private fun finish() {
+        if (parseState.initialized) {
+            // XXX hack
+            FILE.mutator(parseState, "")
+            storeRecord(parseState.record)
+        }
+    }
 
     /**
      * lsof -E can return duplicate "records" for a given process, although these records can have differing sets of files,
      * because they were sampled at different points in time (apparently?). Determine which is the better record to store,
      * and update the records map. (It's possible we could decide to merge them in future.)
      */
-    fun storeRecord(newRecord: ProcessRecord) {
-
+    private fun storeRecord(newRecord: ProcessRecord) {
         val toAdd = if (records.containsKey(newRecord.pid) && records[newRecord.pid] != newRecord) {
 
             val existing = records[newRecord.pid]!!
@@ -34,50 +78,6 @@ class LSOFParser(private val debug: Boolean) {
 
         records[newRecord.pid] = toAdd
     }
-
-    /**
-     * @return if ProcessRecord is populated, consume it. Always pass the returned ParseState to the next invocation
-     */
-    fun parseLine(line: String, parseState: ParseState? = null): Pair<ParseState, ProcessRecord?>  {
-        val state = parseState ?: ParseState.new()
-
-        val prefix = if (line.isNotEmpty()) { line[0] } else { null }
-        val col = prefix?.let { Field.fromPrefix(it) }
-        return if (col != null) {
-            // we found the next record, so output the one we're working on
-            val record = if (col == PID && state.initialized) {
-                val hydrated = state.record.copy(files = state.record.files.sortedBy { it.name }.toMutableList())
-                if (state.record.command == "" && state.record.pid == 0) {
-                    println("ERROR - somehow mutated but ended up with null state")
-                }
-                state.record = ProcessRecord()
-                hydrated
-            } else {
-                null
-            }
-            try {
-                state.initialized = true
-                col.mutator(state, if (line.length > 1) { line.substring(1) } else { "" })
-            } catch (e: Exception) {
-                println("Error parsing $col")
-                throw e
-            }
-            state to record
-        } else {
-            state to null
-        }
-    }
-
-    fun finish(state: ParseState) =
-        if (state.initialized) {
-            // XXX hack
-            FILE.mutator(state, "")
-            state.record
-        } else {
-            null
-        }
-
-    fun yieldData() = records.toMap().freeze()
 
     /**
      * Helper function for debugging duplicate record differences.

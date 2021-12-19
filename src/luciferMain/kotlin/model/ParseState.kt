@@ -10,6 +10,15 @@ data class ParseState(var record: ProcessRecord,
                       var name: String?,
                       var protocol: String?) {
 
+    fun clear() {
+        record = ProcessRecord()
+        initialized = false
+        descriptor = null
+        type = null
+        name = null
+        protocol = null
+    }
+
     companion object {
         fun new() = ParseState(ProcessRecord(), false, null, null, null, null)
     }

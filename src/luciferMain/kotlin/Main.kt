@@ -20,7 +20,6 @@ fun main(args: Array<String>) {
     }
 
     val parser = LSOFParser(debug)
-    var lineState: Pair<ParseState, ProcessRecord?> = ParseState.new() to null
 
     // General algorithm:
     //
@@ -34,29 +33,16 @@ fun main(args: Array<String>) {
     var lines = 0
     while (true) {
         val line = readLine(buffer)
-        if (line != null) {
-            if (err) {
-                printErr(line)
-            }
 
-            if ((lines++ % 1000) == 0) {
-                spinner.spin()
-            }
+        if (err && line != null) {
+            printErr(line)
+        }
 
-            lineState = parser.parseLine(line, lineState.first)
+        if ((lines++ % 1000) == 0) {
+            spinner.spin()
+        }
 
-            if (lineState.second != null) {
-                if (!lineState.first.initialized) {
-                    throw Exception("ERROR - trying to add record that wasn't initialized")
-                }
-                parser.storeRecord(lineState.second!!)
-            }
-        } else {
-            val last = parser.finish(lineState.first)
-            if (last != null) {
-                parser.storeRecord(last)
-            }
-
+        if (!parser.parseLine(line)) {
             spinner.clear()
             val reporter = LSOFReporter(UserResolver(buffer), parser.yieldData(), !noformat)
             // summarization mode
@@ -66,14 +52,13 @@ fun main(args: Array<String>) {
                 reporter.fileTypeUserReport()
                 println()
                 reporter.networkConnectionsReport()
-            // detail mode for specific processes
+                // detail mode for specific processes
             } else {
                 processes.forEach {
                     reporter.processReport(it.toInt())
                     println()
                 }
             }
-
             break
         }
     }
