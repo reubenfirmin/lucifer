@@ -22,8 +22,8 @@ object IOHelpers {
      * NOTE - not threadsafe
      * @return null if we hit EOF
      */
-    fun readLine(buffer: ByteArray, allocated: Int): String? {
-        val read = fgets(buffer.refTo(0), allocated, stdin)?.toKString() ?: return null
+    fun readLine(buffer: ByteArray): String? {
+        val read = fgets(buffer.refTo(0), buffer.size, stdin)?.toKString() ?: return null
         return read.substring(0, read.length - 1)
     }
 
@@ -50,6 +50,28 @@ object IOHelpers {
     fun ansiBg(bg: Color, content: String) = ansi("48;5;${bg.hex}m", content) + ansi("49m")
 
     fun ansiColor(fg: Color, bg: Color, content: String) = ansiFg(fg, ansiBg(bg, content))
+
+    /**
+     * Run a command, returning results. Throws exception on failure.
+     */
+    fun runCommand(command: String, buffer: ByteArray): String {
+        // cribbed from https://stackoverflow.com/questions/57123836/kotlin-native-execute-command-and-get-the-output
+        val fp = popen(command, "r") ?: error("Failed to run command: $command")
+
+        val stdout = buildString {
+            while (true) {
+                val input = fgets(buffer.refTo(0), buffer.size, fp) ?: break
+                append(input.toKString())
+            }
+        }
+
+        val status = pclose(fp)
+        if (status != 0) {
+            error("Command `$command` failed with status $status $stdout")
+        }
+
+        return stdout.trim()
+    }
 }
 
 enum class Color(val hex: Int) {

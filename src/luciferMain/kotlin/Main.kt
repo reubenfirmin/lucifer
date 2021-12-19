@@ -27,7 +27,7 @@ fun main(args: Array<String>) {
     // listed within the overall process record.)
     var lines = 0
     while (true) {
-        val line = readLine(buffer, bufferLen)
+        val line = readLine(buffer)
         if (line != null) {
             if (err) {
                 printErr(line)
@@ -52,7 +52,7 @@ fun main(args: Array<String>) {
             }
 
             spinner.clear()
-            val reporter = LSOFReporter(parser.yieldData())
+            val reporter = LSOFReporter(UserResolver(buffer), parser.yieldData())
             reporter.rawReport()
 
             break

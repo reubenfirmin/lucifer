@@ -10,8 +10,6 @@ class LSOFParser(private val debug: Boolean) {
 
     private val records: MutableMap<Int, ProcessRecord> = mutableMapOf()
 
-
-
     /**
      * lsof -E can return duplicate "records" for a given process, although these records can have differing sets of files,
      * because they were sampled at different points in time (apparently?). Determine which is the better record to store,
@@ -120,7 +118,8 @@ enum class Field(private val prefix: Char,
                  val mutator: (ParseState, String) -> Unit) {
     COMMAND('c', {p, s -> p.record.command = s}),
     PID('p', {p, s -> p.record.pid = s.toInt() }),
-    USER('u', {p, s -> p.record.user = s}),
+    PPID('R', {p, s -> p.record.parentPid = s.toInt()}),
+    USER('u', {p, s -> p.record.user = s.toInt()}),
     FILE('f', {p, s ->
         // we'd collected a prior record
         if (p.descriptor != null) {

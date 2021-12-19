@@ -1,13 +1,12 @@
 import io.Color
 import io.Color.*
-import io.IOHelpers.ansiBg
 import io.IOHelpers.ansiColor
 import io.IOHelpers.ansiFg
 import model.ProcessRecord
 import view.Table
 import kotlin.math.min
 
-class LSOFReporter(recs: Map<Int, ProcessRecord>) {
+class LSOFReporter(val userResolver: UserResolver, recs: Map<Int, ProcessRecord>) {
 
     val records: List<ProcessRecord> =recs.values
         .sortedByDescending { it.files.size }
@@ -34,10 +33,8 @@ class LSOFReporter(recs: Map<Int, ProcessRecord>) {
 
     fun rawReport() {
         val rawTable = Table()
-        commands.keys.forEach {
-            println(it)
-        }
-        rawTable.column("PID", width = 10)
+        rawTable.column("PARENT PID", width = 10)
+                .column("PID", width = 10)
                 .column("USER", width = 20)
                 .column("COMMAND", width = 40) { _, rawCommand, paddedCommand ->
                     val commandCol = commands[rawCommand]
@@ -56,7 +53,12 @@ class LSOFReporter(recs: Map<Int, ProcessRecord>) {
         rawTable.printRow(-1)
 
         records.forEachIndexed { idx, record ->
-            rawTable.printRow(idx, record.pid.toString(), record.user, record.command, record.files.size.toString())
+            rawTable.printRow(idx,
+                record.pid.toString(),
+                record.parentPid.toString(),
+                userResolver.user(record.user),
+                record.command,
+                record.files.size.toString())
         }
     }
 }
