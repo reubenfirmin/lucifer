@@ -102,7 +102,7 @@ class LSOFReporter(val userResolver: UserResolver, recs: Map<Int, ProcessRecord>
     }
 
     fun networkConnectionsReport() {
-        println(ansiUnderline("NETWORK CONNECTIONS BY USER"))
+        println(ansiUnderline("INTERNET CONNECTIONS BY USER"))
 
         val networkProtocols = setOf("TCP", "UDP")
 

@@ -4,7 +4,7 @@ import model.*
 import view.ProgressSpinner
 
 fun main(args: Array<String>) {
-    val spinner = ProgressSpinner("Lucifer - now reading from stdin")
+    val spinner = ProgressSpinner("Lucifer 0.1 - now reading from stdin")
 
     val bufferLen = 4096
     val buffer = ByteArray(bufferLen)
