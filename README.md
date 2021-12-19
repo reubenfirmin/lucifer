@@ -14,6 +14,12 @@ The goal of this tool is to parse lsof output, and provide useful summarization.
 lsof -F | ./lucifer
 ```
 
+### arguments
+
+```
+--err send input from stdin through to stderr
+```
+
 ## status
 
 Beta. Produces basic output.
@@ -24,6 +30,8 @@ Beta. Produces basic output.
  * ansi colors (/)
  * --detail flag to list all files under each process
  * resolve user ids
+ * tree by parent process
+* --no-format flag to turn off ansi colors
 * Summarize by file type
 * Summarize by user
 * Get full command (and other metadata) from ps
