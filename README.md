@@ -21,7 +21,7 @@ Beta. Produces basic output.
 ## roadmap
 
 * Formatting for main summary by process
- * ansi colors  
+ * ansi colors (/)
  * --detail flag to list all files under each process
  * resolve user ids
 * Summarize by file type
