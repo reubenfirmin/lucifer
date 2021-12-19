@@ -22,7 +22,9 @@ kotlin {
     }
 
     luciferTarget.apply {
-        compilations["main"].enableEndorsedLibs = false
+        compilations["main"].cinterops {
+            val ncurses by creating
+        }
         binaries {
             executable(listOf(DEBUG, RELEASE)) {
                 entryPoint = "main"
@@ -30,11 +32,7 @@ kotlin {
         }
     }
     sourceSets {
-        val luciferMain by getting {
-            dependencies {
-                api("org.jetbrains.kotlinx:kotlinx-cli:0.3.4")
-            }
-        }
+        val luciferMain by getting
         val luciferTest by getting
     }
 }
