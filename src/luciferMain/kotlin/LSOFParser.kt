@@ -123,7 +123,7 @@ enum class Field(private val prefix: Char,
     FILE('f', {p, s ->
         // we'd collected a prior record
         if (p.descriptor != null) {
-            p.record.files.add(model.FileRecord(p.descriptor!!, p.type ?: "none", p.name ?: "none", p.protocol ?: "none"))
+            p.record.files.add(model.FileRecord(p.descriptor!!, p.type ?: "", p.name ?: "none", p.protocol ?: ""))
             p.type = null
             p.name = null
             p.protocol = null

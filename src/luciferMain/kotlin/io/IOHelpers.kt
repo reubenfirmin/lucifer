@@ -19,7 +19,6 @@ object IOHelpers {
     /**
      * Replace kotlin's impl of readLine, which is broken on native (https://youtrack.jetbrains.com/issue/KT-39495)
      * TODO consider using readln() instead (added in 1.6) (test)
-     * NOTE - not threadsafe
      * @return null if we hit EOF
      */
     fun readLine(buffer: ByteArray): String? {

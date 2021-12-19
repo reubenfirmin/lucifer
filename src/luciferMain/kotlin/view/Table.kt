@@ -2,7 +2,10 @@ package view
 
 import io.IOHelpers.ansiUnderline
 
-class Table() {
+/**
+ * @param formatting if true, use color to format
+ */
+class Table(val formatting: Boolean) {
 
     data class Column(val heading: String, val headingFormatter: (Int, String, String) -> String,
                       val width: Int, val prePadding: Int, val rowFormatter: (Int, String, String) -> String)
@@ -51,14 +54,19 @@ class Table() {
                 print("".padEnd(column.prePadding, ' '))
             }
 
-            val formatter = if (heading) {
-                column.headingFormatter
-            } else {
-                if (rowIndex >= 0) {
-                    column.rowFormatter
+            val formatter = if (formatting) {
+                if (heading) {
+                    column.headingFormatter
                 } else {
-                    defaultFormatter
+                    // don't format -1
+                    if (rowIndex >= 0) {
+                        column.rowFormatter
+                    } else {
+                        defaultFormatter
+                    }
                 }
+            } else {
+                defaultFormatter
             }
 
             print(formatter.invoke(rowIndex, item,

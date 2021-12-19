@@ -8,9 +8,11 @@ import view.Table
 import kotlin.math.min
 
 /**
- * Various reports from the data.
+ * Generate various reports from the data.
  */
-class LSOFReporter(val userResolver: UserResolver, recs: Map<Int, ProcessRecord>) {
+class LSOFReporter(private val userResolver: UserResolver,
+                   private val recs: Map<Int, ProcessRecord>,
+                   private val formatting: Boolean) {
 
     private val records: List<ProcessRecord> =recs.values
         .sortedByDescending { it.files.size }
@@ -18,8 +20,16 @@ class LSOFReporter(val userResolver: UserResolver, recs: Map<Int, ProcessRecord>
     private val recordsByUser = records
         .groupBy { it.user }
 
+    private fun reportHeading(heading: String) {
+        println(if (formatting) {
+            ansiUnderline(heading)
+        } else {
+            heading
+        })
+    }
+
     fun byProcessReport() {
-        println(ansiUnderline("OPEN FILES BY PROCESS"))
+        reportHeading("OPEN FILES BY PROCESS")
 
         val fileSizeColors = Color.scale1.size
         val bucketSize = (records.size) / fileSizeColors
@@ -41,7 +51,7 @@ class LSOFReporter(val userResolver: UserResolver, recs: Map<Int, ProcessRecord>
             .withIndex()
             .associate { it.value to Color.highlights[it.index] }
 
-        val rawTable = Table()
+        val rawTable = Table(formatting)
                 .column("PARENT PID", width = 10)
                 .column("PID", width = 10)
                 .column("USER", width = 20)
@@ -62,8 +72,8 @@ class LSOFReporter(val userResolver: UserResolver, recs: Map<Int, ProcessRecord>
 
         records.forEachIndexed { idx, record ->
             rawTable.printRow(idx,
-                record.pid.toString(),
                 record.parentPid.toString(),
+                record.pid.toString(),
                 userResolver.user(record.user),
                 record.command,
                 record.files.size.toString())
@@ -71,7 +81,7 @@ class LSOFReporter(val userResolver: UserResolver, recs: Map<Int, ProcessRecord>
     }
 
     fun fileTypeUserReport() {
-        println(ansiUnderline("OPEN FILES BY TYPE BY USER"))
+        reportHeading("OPEN FILES BY TYPE BY USER")
 
         fun byTypes(recs: List<ProcessRecord>) = recs
             .flatMap { it.files }
@@ -83,7 +93,7 @@ class LSOFReporter(val userResolver: UserResolver, recs: Map<Int, ProcessRecord>
         val byUser = recordsByUser
             .map { it.key to byTypes(it.value) }
 
-        val userTypeTable = Table()
+        val userTypeTable = Table(formatting)
             .column("USER")
             .column("TYPE")
             .column("COUNT")
@@ -102,7 +112,7 @@ class LSOFReporter(val userResolver: UserResolver, recs: Map<Int, ProcessRecord>
     }
 
     fun networkConnectionsReport() {
-        println(ansiUnderline("INTERNET CONNECTIONS BY USER"))
+        reportHeading("INTERNET CONNECTIONS BY USER")
 
         val networkProtocols = setOf("TCP", "UDP")
 
@@ -115,11 +125,11 @@ class LSOFReporter(val userResolver: UserResolver, recs: Map<Int, ProcessRecord>
         val byUser = recordsByUser
             .map { it.key to networkConnections(it.value) }
 
-        val networkTable = Table()
+        val networkTable = Table(formatting)
             .column("USER", width = 15)
             .column("COMMAND", width = 7)
-            .column("PID", width = 10)
             .column("PARENT PID", width = 10)
+            .column("PID", width = 10)
             .column("TYPE", width = 4)
             .column("PROTO", width = 6)
             .column("CONNECTION", width = 60)
@@ -133,14 +143,56 @@ class LSOFReporter(val userResolver: UserResolver, recs: Map<Int, ProcessRecord>
                     networkTable.printRow(index++,
                         userResolver.user(userSet.first),
                         processSet.first.command,
-                        processSet.first.pid.toString(),
                         processSet.first.parentPid.toString(),
+                        processSet.first.pid.toString(),
                         fileSet.type,
                         fileSet.protocol,
                         fileSet.name
                     )
                 }
             }
+        }
+    }
+
+    fun processReport(pid: Int) {
+        val processTable = Table(formatting)
+            .column("PARENT PID", width = 10)
+            .column("PID", width = 10)
+            .column("USER", width = 20)
+            .column("COMMAND", width = 40)
+
+        processTable.printHeading()
+
+        val processRecord = recs[pid]
+        if (processRecord == null) {
+            println("Process $pid not found")
+        } else {
+            processTable.printRow(0,
+                processRecord.parentPid.toString(),
+                processRecord.pid.toString(),
+                userResolver.user(processRecord.user),
+                processRecord.command
+            )
+
+            println()
+            val fileTable = Table(formatting)
+                .column("DESCRIPTOR", width = 10)
+                .column("TYPE", width = 10)
+                .column("PROTO", width = 6)
+                .column("NAME", width = 80)
+
+            fileTable.printHeading()
+
+            processRecord.files
+                .sortedBy { it.name }
+                .forEachIndexed { idx, file ->
+                    fileTable.printRow(idx,
+                        file.descriptor,
+                        file.type,
+                        file.protocol,
+                        file.name
+                    )
+                }
         }
     }
 }

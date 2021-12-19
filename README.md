@@ -21,16 +21,26 @@ A list of all UDP and TCP information, by user. Some columns are truncated to gi
 ./build.sh
 ```
 
-## usage
+## usage examples
+
+Lucifer parses the output of lsof -F. Any other argument provided to lsof may result in the parsing crashing.
 
 ```
 lsof -F | ./lucifer
+
+OR
+
+sudo lsof -F > detail.txt
+cat detail.txt > lucifer
+cat detail.txt > lucifer --process 123 --process=5233
 ```
 
-### arguments
+### optiona arguments
 
 ```
---err send input from stdin through to stderr
+--err           : send input from stdin through to stderr
+--noformat      : turn off color highlighting
+--process={pid} : full report on a specific process (may be repeated, e.g. --process=1 --process=2)
 ```
 
 ## status

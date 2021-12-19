@@ -12,6 +12,12 @@ fun main(args: Array<String>) {
     // TODO brutal hack for now. there is an arg parser available in kotlinx, but it adds 1MB to the compiled binary
     val debug = args.contains("--debug")
     val err = args.contains("--err")
+    val noformat = args.contains("--noformat")
+    val processes = args.filter {
+        it.startsWith("--process=")
+    }.map {
+        it.substring(10)
+    }
 
     val parser = LSOFParser(debug)
     var lineState: Pair<ParseState, ProcessRecord?> = ParseState.new() to null
@@ -52,12 +58,22 @@ fun main(args: Array<String>) {
             }
 
             spinner.clear()
-            val reporter = LSOFReporter(UserResolver(buffer), parser.yieldData())
-            reporter.byProcessReport()
-            println()
-            reporter.fileTypeUserReport()
-            println()
-            reporter.networkConnectionsReport()
+            val reporter = LSOFReporter(UserResolver(buffer), parser.yieldData(), !noformat)
+            // summarization mode
+            if (processes.isEmpty()) {
+                reporter.byProcessReport()
+                println()
+                reporter.fileTypeUserReport()
+                println()
+                reporter.networkConnectionsReport()
+            // detail mode for specific processes
+            } else {
+                processes.forEach {
+                    reporter.processReport(it.toInt())
+                    println()
+                }
+            }
+
             break
         }
     }
