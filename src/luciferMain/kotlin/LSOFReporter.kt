@@ -64,7 +64,7 @@ class LSOFReporter(private val userResolver: UserResolver,
                 .column("PARENT PID", width = 10)
                 .column("PID", width = 10)
                 .column("USER", width = 20)
-                .column("FILES", width = 20) { idx, _, size ->
+                .column("FILES", width = 8) { idx, _, size ->
                     ansiFg(rangeColor(idx), size)
                 }
                 .column("COMMAND", consumeRemainingWidth = true) { _, rawCommand, paddedCommand ->
@@ -135,7 +135,7 @@ class LSOFReporter(private val userResolver: UserResolver,
         val byUser = recordsByUser
             .map { it.key to networkConnections(it.value) }
 
-        val narrow = terminalWidth < 80
+        val narrow = terminalWidth < 110
 
         val networkTable = Table(formatting, terminalWidth)
             .column("USER", width = if (narrow) { 10 } else { 15 })

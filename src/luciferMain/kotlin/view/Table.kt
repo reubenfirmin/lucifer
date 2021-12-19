@@ -1,6 +1,8 @@
 package view
 
 import io.IOHelpers.ansiUnderline
+import kotlin.math.max
+import kotlin.math.min
 
 /**
  * @param formatting if true, use color to format
@@ -8,8 +10,20 @@ import io.IOHelpers.ansiUnderline
  */
 class Table(val formatting: Boolean, val maxWidth: Int) {
 
-    data class Column(val heading: String, val headingFormatter: (Int, String, String) -> String,
-                      val width: Int, val prePadding: Int, val rowFormatter: (Int, String, String) -> String)
+    private interface Column {
+        val prePadding: Int
+            get() = 0
+        val width: Int
+            get() = 0
+    }
+
+    private class VisibleColumn(val heading: String,
+                                val headingFormatter: (Int, String, String) -> String,
+                                override val width: Int,
+                                override val prePadding: Int,
+                                val rowFormatter: (Int, String, String) -> String): Column
+
+    private class Sink: Column
 
     private val columns = ArrayList<Column>()
 
@@ -33,20 +47,20 @@ class Table(val formatting: Boolean, val maxWidth: Int) {
                consumeRemainingWidth: Boolean = false,
                rowFormatter: (Int, String, String) -> String = defaultFormatter): Table {
 
-
         val renderWidth = if (consumeRemainingWidth) {
             val usedWidth = columns.sumOf { it.prePadding + it.width } + prePadding
-            maxWidth - usedWidth
+            // hide if less than 0
+            max(maxWidth - usedWidth, 0)
         } else {
             width
         }
 
-        columns.add(Column(heading, headingFormatter, renderWidth, prePadding, rowFormatter))
+        columns.add(VisibleColumn(heading, headingFormatter, renderWidth, prePadding, rowFormatter))
         return this
     }
 
     /**
-     * Adds a column if condition is true. See [column]
+     * Adds a column if condition is true, otherwise adds a Sink. See [column]
      */
     fun optionalColumn(condition: Boolean,
                        heading: String,
@@ -55,8 +69,11 @@ class Table(val formatting: Boolean, val maxWidth: Int) {
                        prePadding: Int = 5,
                        consumeRemainingWidth: Boolean = false,
                        rowFormatter: (Int, String, String) -> String = defaultFormatter): Table {
+
         if (condition) {
             column(heading, headingFormatter, width, prePadding, consumeRemainingWidth, rowFormatter)
+        } else {
+            columns.add(Sink())
         }
         return this
     }
@@ -64,7 +81,7 @@ class Table(val formatting: Boolean, val maxWidth: Int) {
     val defaultFormatter: (Int, String, String) -> String = { _, _, str -> str }
 
     fun printHeading() {
-        printRow(-1, true, *columns.map { it.heading }.toTypedArray())
+        printRow(-1, true, *columns.map { if (it is VisibleColumn) { it.heading } else { "" } }.toTypedArray())
     }
 
     /**
@@ -77,32 +94,37 @@ class Table(val formatting: Boolean, val maxWidth: Int) {
     private fun printRow(rowIndex: Int, heading: Boolean = false, vararg data: String) {
         data.forEachIndexed { idx, item ->
             val column = columns[idx]
-            if (column.prePadding >= 0) {
-                print("".padEnd(column.prePadding, ' '))
-            }
+            if (column is VisibleColumn) {
+                if (column.prePadding >= 0) {
+                    print("".padEnd(column.prePadding, ' '))
+                }
 
-            val formatter = if (formatting) {
-                if (heading) {
-                    column.headingFormatter
-                } else {
-                    // don't format -1
-                    if (rowIndex >= 0) {
-                        column.rowFormatter
+                val formatter = if (formatting) {
+                    if (heading) {
+                        column.headingFormatter
                     } else {
-                        defaultFormatter
+                        // don't format -1
+                        if (rowIndex >= 0) {
+                            column.rowFormatter
+                        } else {
+                            defaultFormatter
+                        }
                     }
-                }
-            } else {
-                defaultFormatter
-            }
-
-            print(formatter.invoke(rowIndex, item,
-                if (item.length >= column.width) {
-                    item.substring(0, column.width)
                 } else {
-                    item.padEnd(column.width, ' ')
+                    defaultFormatter
                 }
-            ))
+
+                print(
+                    formatter.invoke(
+                        rowIndex, item,
+                        if (item.length >= column.width) {
+                            item.substring(0, column.width)
+                        } else {
+                            item.padEnd(column.width, ' ')
+                        }
+                    )
+                )
+            }
         }
         println()
     }
