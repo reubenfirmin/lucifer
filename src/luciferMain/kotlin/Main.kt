@@ -17,7 +17,7 @@ fun main(args: Array<String>) {
     // Read a line at a time until EOF.
     //
     // Every time we hit a line starting with "p" (pid / process id), then store the record we've been accumulating in
-    // processState, and start storing a new record.
+    // lineState, and start storing a new record.
     //
     // Records are variable length, because there is a 1:N relationship between processes and files (i.e. files are
     // listed within the overall process record.)
