@@ -47,21 +47,28 @@ object IOHelpers {
 
     fun ansiFg(fg: Color, content: String) = ansi("38;5;${fg.hex}m", content) + ansi("39m")
 
-    fun ansiBg(bg: Color, content: String) = ansi("48;5;${bg.hex}m", content) + ansi("39m")
+    fun ansiBg(bg: Color, content: String) = ansi("48;5;${bg.hex}m", content) + ansi("49m")
 
     fun ansiColor(fg: Color, bg: Color, content: String) = ansiFg(fg, ansiBg(bg, content))
 }
 
 enum class Color(val hex: Int) {
+    // https://gist.github.com/fnky/458719343aabd01cfb17a3a4f7296797
     BLACK(0),
     SCALE1_0(45), // TODO terminal color codes are terrible. possible to algorithmically pick an aesthetic range
     SCALE1_1(44),
     SCALE1_2(43),
     SCALE1_3(42),
     SCALE1_4(41),
-    SCALE1_5(40);
+    SCALE1_5(40),
+    HIGHLIGHT_0(226),
+    HIGHLIGHT_1(197),
+    HIGHLIGHT_2(87),
+    HIGHLIGHT_3(82),
+    HIGHLIGHT_4(202);
 
     companion object {
         val scale1 = arrayListOf(SCALE1_0, SCALE1_1, SCALE1_2, SCALE1_3, SCALE1_4, SCALE1_5)
+        val highlights = arrayListOf(HIGHLIGHT_0, HIGHLIGHT_1, HIGHLIGHT_2, HIGHLIGHT_3, HIGHLIGHT_4)
     }
 }

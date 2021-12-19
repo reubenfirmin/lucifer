@@ -1,14 +1,31 @@
 import io.Color
+import io.Color.*
+import io.IOHelpers.ansiBg
+import io.IOHelpers.ansiColor
 import io.IOHelpers.ansiFg
 import model.ProcessRecord
 import view.Table
-import kotlin.math.max
 import kotlin.math.min
 
-class LSOFReporter(val records: Map<Int, ProcessRecord>) {
+class LSOFReporter(recs: Map<Int, ProcessRecord>) {
 
-    val fileSizeColors = 6
+    val records: List<ProcessRecord> =recs.values
+        .sortedByDescending { it.files.size }
+
+    val fileSizeColors = Color.scale1.size
     val bucketSize = (records.size) / fileSizeColors
+
+    val numberMostCommonCommands = Color.highlights.size
+    val commands = records
+        .asSequence()
+        .map { it.command }
+        .groupBy { it }
+        .map { it.value }
+        .sortedByDescending { it.size }
+        .take(numberMostCommonCommands)
+        .map { it.first() }
+        .withIndex()
+        .associate { it.value to Color.highlights[it.index] }
 
     /**
      * Map an item to a color
@@ -17,20 +34,29 @@ class LSOFReporter(val records: Map<Int, ProcessRecord>) {
 
     fun rawReport() {
         val rawTable = Table()
+        commands.keys.forEach {
+            println(it)
+        }
         rawTable.column("PID", width = 10)
                 .column("USER", width = 20)
-                .column("COMMAND", width = 40)
-                .column("FILES", width = 20)
+                .column("COMMAND", width = 40) { _, rawCommand, paddedCommand ->
+                    val commandCol = commands[rawCommand]
+
+                    if (commandCol != null) {
+                        ansiColor(BLACK, commandCol, paddedCommand)
+                    } else {
+                        paddedCommand
+                    }
+                }
+                .column("FILES", width = 20) { idx, _, size ->
+                    ansiFg(rangeColor(idx), size)
+                }
 
         rawTable.printHeading()
-        rawTable.printRow()
+        rawTable.printRow(-1)
 
-        records
-            .values
-            .sortedByDescending { it.files.size }
-            .forEachIndexed { idx, record ->
-                rawTable.printRow(record.pid.toString(), record.user, record.command,
-                    ansiFg(rangeColor(idx), record.files.size.toString()))
-            }
+        records.forEachIndexed { idx, record ->
+            rawTable.printRow(idx, record.pid.toString(), record.user, record.command, record.files.size.toString())
+        }
     }
 }
