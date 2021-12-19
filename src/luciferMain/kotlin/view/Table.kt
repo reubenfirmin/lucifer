@@ -4,8 +4,9 @@ import io.IOHelpers.ansiUnderline
 
 /**
  * @param formatting if true, use color to format
+ * @param maxWidth terminal width (TODO doesn't fully obey this yet)
  */
-class Table(val formatting: Boolean) {
+class Table(val formatting: Boolean, val maxWidth: Int) {
 
     data class Column(val heading: String, val headingFormatter: (Int, String, String) -> String,
                       val width: Int, val prePadding: Int, val rowFormatter: (Int, String, String) -> String)
@@ -22,15 +23,41 @@ class Table(val formatting: Boolean) {
      *                          index / raw value / padded value
      * @param width - width to crop/pad the column to
      * @param prePadding - spaces to insert prior to the column
+     * @param consumeRemainingWidth - can set to true on last column to fill width
      * @param rowFormatter - formatter for values in this row/column - provided index / raw value / padded value
      */
     fun column(heading: String,
                headingFormatter: (Int, String, String) -> String = { _, _, str -> ansiUnderline(str) },
                width: Int = 20,
                prePadding: Int = 5,
+               consumeRemainingWidth: Boolean = false,
                rowFormatter: (Int, String, String) -> String = defaultFormatter): Table {
 
-        columns.add(Column(heading, headingFormatter, width, prePadding, rowFormatter))
+
+        val renderWidth = if (consumeRemainingWidth) {
+            val usedWidth = columns.sumOf { it.prePadding + it.width } + prePadding
+            maxWidth - usedWidth
+        } else {
+            width
+        }
+
+        columns.add(Column(heading, headingFormatter, renderWidth, prePadding, rowFormatter))
+        return this
+    }
+
+    /**
+     * Adds a column if condition is true. See [column]
+     */
+    fun optionalColumn(condition: Boolean,
+                       heading: String,
+                       headingFormatter: (Int, String, String) -> String = { _, _, str -> ansiUnderline(str) },
+                       width: Int = 20,
+                       prePadding: Int = 5,
+                       consumeRemainingWidth: Boolean = false,
+                       rowFormatter: (Int, String, String) -> String = defaultFormatter): Table {
+        if (condition) {
+            column(heading, headingFormatter, width, prePadding, consumeRemainingWidth, rowFormatter)
+        }
         return this
     }
 

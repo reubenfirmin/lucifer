@@ -1,10 +1,9 @@
 import io.IOHelpers.printErr
 import io.IOHelpers.readLine
-import model.*
 import view.ProgressSpinner
 
 fun main(args: Array<String>) {
-    val spinner = ProgressSpinner("Lucifer 0.1 - now reading from stdin")
+    val spinner = ProgressSpinner("Lucifer 0.2 - now reading from stdin")
 
     val bufferLen = 4096
     val buffer = ByteArray(bufferLen)
@@ -44,7 +43,7 @@ fun main(args: Array<String>) {
 
         if (!parser.parseLine(line)) {
             spinner.clear()
-            val reporter = LSOFReporter(UserResolver(buffer), parser.yieldData(), !noformat)
+            val reporter = LSOFReporter(UserResolver(buffer), parser.yieldData(), !noformat, buffer)
             // summarization mode
             if (processes.isEmpty()) {
                 reporter.byProcessReport()

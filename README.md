@@ -1,6 +1,6 @@
-# lucifer 0.1
+# lucifer 0.2
 
-The goal of this tool is to parse **lsof** output, and provide useful summarization. 
+The goal of this tool is to parse **lsof** output, and provide useful summarization. PRs welcomed.
 
 ## reports
 
@@ -62,6 +62,7 @@ This project is an exploration of kotlin-native, which is basically functional, 
 * The biggest that I encountered is that readLine() does not split on newline (0xA); after spending a couple of hours trying to massage the broken output I eventually realized that I could just call C's stdio `fgets` function, which reads a line. Nice. 
 * Method references (e.g. ::foo) cause the compiler to crash.
 * Output binary size is very large. This alone is probably enough reason to port this to Go or Rust once it's useful enough.
+* I couldn't get tests to work under Intellij (yet) so there are none, so far.
 
 # FAQ
 
