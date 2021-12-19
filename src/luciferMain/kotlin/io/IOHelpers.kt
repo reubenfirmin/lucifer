@@ -25,7 +25,6 @@ object IOHelpers {
         return read.substring(0, read.length - 1)
     }
 
-
     const val MAX_READ = 4096
     val buffer = ByteArray(MAX_READ)
 }

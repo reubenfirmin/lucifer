@@ -41,9 +41,9 @@ fun main(args: Array<String>) {
                 parser.storeRecord(last)
             }
 
-            parser.printReport()
-            println()
-            println("DONE")
+            val reporter = LSOFReporter(parser.yieldData())
+            reporter.rawReport()
+
             break
         }
     }

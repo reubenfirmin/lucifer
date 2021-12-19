@@ -9,45 +9,6 @@ class LSOFParser(private val debug: Boolean) {
 
     private val records: MutableMap<Int, ProcessRecord> = mutableMapOf()
 
-    fun finish(state: ParseState) =
-        if (state.initialized) {
-            // hack
-            FILE.mutator(state, "")
-            state.record
-        } else {
-            null
-        }
-
-    /**
-     * Helper function for debugging duplicate record differences.
-     */
-    fun compare(oldRecord: ProcessRecord, newRecord: ProcessRecord) {
-        println("ERROR(?) - duplicate process records with differing content ---")
-        println("${newRecord.pid} || ${oldRecord.pid}")
-        if (newRecord.command != oldRecord.command) {
-            println("COMMAND -- ${newRecord.command} || ${oldRecord.command}")
-        }
-        if (newRecord.user != oldRecord.user) {
-            println("USER -- ${newRecord.user} || ${oldRecord.user}")
-        }
-        if (newRecord.files.size != oldRecord.files.size) {
-            println("FILE COUNT -- ${newRecord.files.size} || ${oldRecord.files.size}")
-        }
-        for (file in newRecord.files.zip(oldRecord.files)) {
-            if (file.first != file.second) {
-                if (file.first.name != file.second.name) {
-                    println("FILE NAME -- ${file.first.name} ${file.second.name}")
-                }
-                if (file.first.descriptor != file.second.descriptor) {
-                    println("FILE DESCRIPTOR -- ${file.first.descriptor} ${file.second.descriptor}")
-                }
-                if (file.first.type != file.second.type) {
-                    println("FILE TYPE -- ${file.first.type} ${file.second.type}")
-                }
-            }
-        }
-    }
-
     /**
      * lsof -E can return duplicate "records" for a given process, although these records can have differing sets of files,
      * because they were sampled at different points in time (apparently?). Determine which is the better record to store,
@@ -78,9 +39,9 @@ class LSOFParser(private val debug: Boolean) {
      */
     fun parseLine(line: String, parseState: ParseState? = null): Pair<ParseState, ProcessRecord?>  {
         val state = parseState ?: ParseState.new()
-        // XXX hack
-        val prefix = if (line.isNotEmpty()) { line[0] } else { '0' }
-        val col = Field.fromPrefix(prefix)
+
+        val prefix = if (line.isNotEmpty()) { line[0] } else { null }
+        val col = prefix?.let { Field.fromPrefix(it) }
         return if (col != null) {
             // we found the next record, so output the one we're working on
             val record = if (col == PID && state.initialized) {
@@ -106,14 +67,45 @@ class LSOFParser(private val debug: Boolean) {
         }
     }
 
-    fun printReport() {
-        // reporting
-        records
-            .values
-            .sortedByDescending { it.files.size }
-            .forEach {
-                println("${it.pid}\t${it.user}\t${it.command}\t\t\t${it.files.size}")
+    fun finish(state: ParseState) =
+        if (state.initialized) {
+            // XXX hack
+            FILE.mutator(state, "")
+            state.record
+        } else {
+            null
+        }
+
+    fun yieldData() = records.toMap()
+
+    /**
+     * Helper function for debugging duplicate record differences.
+     */
+    fun compare(oldRecord: ProcessRecord, newRecord: ProcessRecord) {
+        println("ERROR(?) - duplicate process records with differing content ---")
+        println("${newRecord.pid} || ${oldRecord.pid}")
+        if (newRecord.command != oldRecord.command) {
+            println("COMMAND -- ${newRecord.command} || ${oldRecord.command}")
+        }
+        if (newRecord.user != oldRecord.user) {
+            println("USER -- ${newRecord.user} || ${oldRecord.user}")
+        }
+        if (newRecord.files.size != oldRecord.files.size) {
+            println("FILE COUNT -- ${newRecord.files.size} || ${oldRecord.files.size}")
+        }
+        for (file in newRecord.files.zip(oldRecord.files)) {
+            if (file.first != file.second) {
+                if (file.first.name != file.second.name) {
+                    println("FILE NAME -- ${file.first.name} ${file.second.name}")
+                }
+                if (file.first.descriptor != file.second.descriptor) {
+                    println("FILE DESCRIPTOR -- ${file.first.descriptor} ${file.second.descriptor}")
+                }
+                if (file.first.type != file.second.type) {
+                    println("FILE TYPE -- ${file.first.type} ${file.second.type}")
+                }
             }
+        }
     }
 }
 
