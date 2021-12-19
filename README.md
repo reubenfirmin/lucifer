@@ -49,11 +49,10 @@ Beta.
 
 ## roadmap
 
-* --detail flag to list all files under each process
-* --no-format flag to turn off ansi colors
-* --parent flag to order by parent
+* --parent flag to order by parent / parent tree
 * Get full command (and other metadata) from ps
 * Somehow match colors to user terminal (right now assumes dark background)
+* ncurses based UI for browsing different reports
 
 # kotlin-native
 
