@@ -30,8 +30,8 @@ Beta. Produces basic output.
  * ansi colors (/)
  * --detail flag to list all files under each process
  * resolve user ids
- * tree by parent process
 * --no-format flag to turn off ansi colors
+* --parent flag to order by parent
 * Summarize by file type
 * Summarize by user
 * Get full command (and other metadata) from ps
