@@ -35,7 +35,7 @@ cat detail.txt | lucifer
 cat detail.txt | lucifer --process 123 --process=5233
 ```
 
-### optiona arguments
+### optional arguments
 
 ```
 --err           : send input from stdin through to stderr
@@ -50,9 +50,10 @@ Beta.
 ## roadmap
 
 * --parent flag to order by parent / parent tree
+* Smart coloring in the extra reports
 * Get full command (and other metadata) from ps
 * Somehow match colors to user terminal (right now assumes dark background)
-* ncurses based UI for browsing different reports
+* ncurses based UI for browsing different reports / detail view
 
 # kotlin-native
 
