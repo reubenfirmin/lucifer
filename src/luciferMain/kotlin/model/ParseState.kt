@@ -7,9 +7,10 @@ data class ParseState(var record: ProcessRecord,
                       var initialized: Boolean,
                       var descriptor: String?,
                       var type: String?,
-                      var name: String?) {
+                      var name: String?,
+                      var protocol: String?) {
 
     companion object {
-        fun new() = ParseState(ProcessRecord(), false, null, null, null)
+        fun new() = ParseState(ProcessRecord(), false, null, null, null, null)
     }
 }

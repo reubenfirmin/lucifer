@@ -123,14 +123,16 @@ enum class Field(private val prefix: Char,
     FILE('f', {p, s ->
         // we'd collected a prior record
         if (p.descriptor != null) {
-            p.record.files.add(model.FileRecord(p.descriptor!!, p.type ?: "none", p.name ?: "none"))
+            p.record.files.add(model.FileRecord(p.descriptor!!, p.type ?: "none", p.name ?: "none", p.protocol ?: "none"))
             p.type = null
             p.name = null
+            p.protocol = null
         }
         p.descriptor = s
     }),
     TYPE('t', {p, s -> p.type = s}),
-    NAME('n', {p, s -> p.name = s});
+    NAME('n', {p, s -> p.name = s}),
+    PROTOCOL('P', {p, s -> p.protocol = s});
 
     companion object {
         private val prefixMap = values().associateBy { it.prefix }

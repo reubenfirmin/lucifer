@@ -3,4 +3,4 @@ package model
 /**
  * A record describing a file associated with a process.
  */
-data class FileRecord(val descriptor: String, val type: String, val name: String)
+data class FileRecord(val descriptor: String, val type: String, val name: String, val protocol: String)

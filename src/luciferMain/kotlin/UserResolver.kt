@@ -1,4 +1,5 @@
 import io.IOHelpers.runCommand
+import model.UNKNOWN_USER
 
 /**
  * Converts user id to username
@@ -9,8 +10,11 @@ class UserResolver(val buffer: ByteArray) {
 
     fun user(id: Int) =
         users.getOrPut(id) {
-            val user = runCommand("id $id", buffer)
-            parseUser(user)
+            if (id == UNKNOWN_USER) {
+                "UNKNOWN"
+            } else {
+                parseUser(runCommand("id $id", buffer))
+            }
         }
 
     private fun parseUser(res: String): String {

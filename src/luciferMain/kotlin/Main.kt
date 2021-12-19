@@ -53,8 +53,11 @@ fun main(args: Array<String>) {
 
             spinner.clear()
             val reporter = LSOFReporter(UserResolver(buffer), parser.yieldData())
-            reporter.rawReport()
-
+            reporter.byProcessReport()
+            println()
+            reporter.fileTypeUserReport()
+            println()
+            reporter.networkConnectionsReport()
             break
         }
     }
