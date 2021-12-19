@@ -1,6 +1,19 @@
 # lucifer
 
-The goal of this tool is to parse lsof output, and provide useful summarization. Right now all it does is provide a list of processes ordered by the number of open files. More in progress.
+The goal of this tool is to parse lsof output, and provide useful summarization. 
+
+## reports
+
+It currently provides 3 reports:
+
+### OPEN FILES BY PROCESS
+This is a list of all processes (with associated metadata), along with the count of files opened by that process. Note that child processes may have files in common with each other.
+
+### OPEN FILES BY TYPE BY USER
+A summary of the number of files, by type, by user.
+
+### INTERNET CONNECTIONS BY USER
+A list of all UDP and TCP information, by user. Some columns are truncated to give as much room to the connection detail without wrapping.
 
 ## building
 
@@ -26,14 +39,9 @@ Beta.
 
 ## roadmap
 
-* Formatting for main summary by process
-  * ansi colors (/)
-  * --detail flag to list all files under each process
-  * resolve user ids (/)
+* --detail flag to list all files under each process
 * --no-format flag to turn off ansi colors
 * --parent flag to order by parent
-* Summarize by file type
-* Summarize by user
 * Get full command (and other metadata) from ps
 * Somehow match colors to user terminal (right now assumes dark background)
 
