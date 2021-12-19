@@ -1,6 +1,6 @@
-# lucifer
+# lucifer 0.1
 
-The goal of this tool is to parse lsof output, and provide useful summarization. 
+The goal of this tool is to parse **lsof** output, and provide useful summarization. 
 
 ## reports
 
@@ -53,3 +53,8 @@ This project is an exploration of kotlin-native, which is basically functional, 
 * Method references (e.g. ::foo) cause the compiler to crash.
 * Output binary size is very large. This alone is probably enough reason to port this to Go or Rust once it's useful enough.
 
+# FAQ
+
+## What's with the name?
+
+Bad pun. Lucifer = lsof-er. 
