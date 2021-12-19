@@ -31,8 +31,8 @@ lsof -F | ./lucifer
 OR
 
 sudo lsof -F > detail.txt
-cat detail.txt > lucifer
-cat detail.txt > lucifer --process 123 --process=5233
+cat detail.txt | lucifer
+cat detail.txt | lucifer --process 123 --process=5233
 ```
 
 ### optiona arguments
