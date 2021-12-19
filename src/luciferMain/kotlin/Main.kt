@@ -1,9 +1,13 @@
 import io.IOHelpers.printErr
 import io.IOHelpers.readLine
 import model.*
+import view.ProgressSpinner
 
 fun main(args: Array<String>) {
-    println("Lucifer - parsing input...")
+    val spinner = ProgressSpinner("Lucifer - now reading from stdin")
+
+    val bufferLen = 4096
+    val buffer = ByteArray(bufferLen)
 
     // TODO brutal hack for now. there is an arg parser available in kotlinx, but it adds 1MB to the compiled binary
     val debug = args.contains("--debug")
@@ -21,12 +25,18 @@ fun main(args: Array<String>) {
     //
     // Records are variable length, because there is a 1:N relationship between processes and files (i.e. files are
     // listed within the overall process record.)
+    var lines = 0
     while (true) {
-        val line = readLine()
+        val line = readLine(buffer, bufferLen)
         if (line != null) {
             if (err) {
                 printErr(line)
             }
+
+            if ((lines++ % 1000) == 0) {
+                spinner.spin()
+            }
+
             lineState = parser.parseLine(line, lineState.first)
 
             if (lineState.second != null) {
@@ -41,6 +51,7 @@ fun main(args: Array<String>) {
                 parser.storeRecord(last)
             }
 
+            spinner.clear()
             val reporter = LSOFReporter(parser.yieldData())
             reporter.rawReport()
 

@@ -1,6 +1,7 @@
 import Field.*
 import model.ParseState
 import model.ProcessRecord
+import kotlin.native.concurrent.freeze
 
 /**
  * @param debug true to print record differences to stdout
@@ -8,6 +9,8 @@ import model.ProcessRecord
 class LSOFParser(private val debug: Boolean) {
 
     private val records: MutableMap<Int, ProcessRecord> = mutableMapOf()
+
+
 
     /**
      * lsof -E can return duplicate "records" for a given process, although these records can have differing sets of files,
@@ -76,7 +79,7 @@ class LSOFParser(private val debug: Boolean) {
             null
         }
 
-    fun yieldData() = records.toMap()
+    fun yieldData() = records.toMap().freeze()
 
     /**
      * Helper function for debugging duplicate record differences.
