@@ -36,7 +36,8 @@ class LSOFParser(private val debug: Boolean) {
                     parseState.initialized = true
                     col.mutator(parseState, if (line.length > 1) { line.substring(1) } else { "" })
                 } catch (e: Exception) {
-                    println("Error parsing $col")
+                    println("""Error parsing $col ${line.length} 
+                        ${if (line.length > 1) { line.substring(1) } else { "" }}""")
                     throw e
                 }
             }

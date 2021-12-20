@@ -50,7 +50,6 @@ Beta.
 ## roadmap
 
 * color coding for all ranges (generalize logic)
-* smart wrapping within table columns
 * --parent flag to order by parent / parent tree
 * smart coloring in the reports to highlight things worth noticing
 * somehow match colors to user terminal (right now assumes dark background)

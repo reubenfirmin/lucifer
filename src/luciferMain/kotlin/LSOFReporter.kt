@@ -100,7 +100,8 @@ class LSOFReporter(private val userResolver: UserResolver,
                 metadata?.cpu?.toString() ?: "",
                 metadata?.memory?.toString() ?: "",
                 metadata?.cpuTime?.toString() ?: "",
-                if (wide && metadata != null) { metadata.command } else { record.command })
+                metadata?.command ?: record.command
+            )
         }
     }
 
@@ -189,15 +190,17 @@ class LSOFReporter(private val userResolver: UserResolver,
 
         processTable.printHeading()
 
+        // TODO additional detail metadata for this process
         val processRecord = recs[pid]
         if (processRecord == null) {
             println("Process $pid not found")
         } else {
+            val metadata = processResolver.process(pid)
             processTable.printRow(0,
                 processRecord.parentPid.toString(),
                 processRecord.pid.toString(),
                 userResolver.user(processRecord.user),
-                processRecord.command
+                metadata?.command ?: processRecord.command
             )
 
             println()
