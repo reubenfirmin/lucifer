@@ -3,6 +3,7 @@ import io.Color.*
 import io.IOHelpers.ansiColor
 import io.IOHelpers.ansiFg
 import io.IOHelpers.ansiUnderline
+import io.IOHelpers.runCommand
 import model.ProcessRecord
 import view.Table
 import kotlin.math.min
@@ -11,8 +12,10 @@ import kotlin.math.min
  * Generate various reports from the data.
  */
 class LSOFReporter(private val userResolver: UserResolver,
+                   private val processResolver: ProcessResolver,
                    private val recs: Map<Int, ProcessRecord>,
-                   private val formatting: Boolean) {
+                   private val formatting: Boolean,
+                   buffer: ByteArray) {
 
     private val records: List<ProcessRecord> =recs.values
         .sortedByDescending { it.files.size }
@@ -28,6 +31,13 @@ class LSOFReporter(private val userResolver: UserResolver,
         })
     }
 
+    private val terminalWidth: Int
+
+    init {
+        val width = runCommand("tput cols", buffer)
+        terminalWidth = width.toInt()
+    }
+
     fun byProcessReport() {
         reportHeading("OPEN FILES BY PROCESS")
 
@@ -40,6 +50,9 @@ class LSOFReporter(private val userResolver: UserResolver,
         fun rangeColor(idx: Int) = Color.scale1[min((idx / bucketSize), fileSizeColors - 1)]
 
         val numberMostCommonCommands = Color.highlights.size
+
+        // TODO maybe split command and args...? or handle metadata commands here in case of "wide"
+        // TODO get max command length
         val commands = records
             .asSequence()
             .map { it.command }
@@ -51,11 +64,19 @@ class LSOFReporter(private val userResolver: UserResolver,
             .withIndex()
             .associate { it.value to Color.highlights[it.index] }
 
-        val rawTable = Table(formatting)
+        val wide = terminalWidth > 100
+
+        val rawTable = Table(formatting, terminalWidth)
                 .column("PARENT PID", width = 10)
                 .column("PID", width = 10)
                 .column("USER", width = 20)
-                .column("COMMAND", width = 40) { _, rawCommand, paddedCommand ->
+                .column("FILES", width = 8) { idx, _, size ->
+                    ansiFg(rangeColor(idx), size)
+                }
+                .optionalColumn(wide, "CPU", width = 5) // TODO generalize color ranges on these
+                .optionalColumn(wide, "MEM", width = 5)
+                .optionalColumn(wide, "TIME", width = 8)
+                .column("COMMAND", consumeRemainingWidth = true) { _, rawCommand, paddedCommand ->
                     val commandCol = commands[rawCommand]
 
                     if (commandCol != null) {
@@ -64,19 +85,22 @@ class LSOFReporter(private val userResolver: UserResolver,
                         paddedCommand
                     }
                 }
-                .column("FILES", width = 20) { idx, _, size ->
-                    ansiFg(rangeColor(idx), size)
-                }
+
 
         rawTable.printHeading()
 
         records.forEachIndexed { idx, record ->
+            val metadata = processResolver.process(record.pid)
+
             rawTable.printRow(idx,
                 record.parentPid.toString(),
                 record.pid.toString(),
                 userResolver.user(record.user),
-                record.command,
-                record.files.size.toString())
+                record.files.size.toString(),
+                metadata?.cpu?.toString() ?: "",
+                metadata?.memory?.toString() ?: "",
+                metadata?.cpuTime?.toString() ?: "",
+                if (wide && metadata != null) { metadata.command } else { record.command })
         }
     }
 
@@ -93,7 +117,7 @@ class LSOFReporter(private val userResolver: UserResolver,
         val byUser = recordsByUser
             .map { it.key to byTypes(it.value) }
 
-        val userTypeTable = Table(formatting)
+        val userTypeTable = Table(formatting, terminalWidth)
             .column("USER")
             .column("TYPE")
             .column("COUNT")
@@ -125,14 +149,16 @@ class LSOFReporter(private val userResolver: UserResolver,
         val byUser = recordsByUser
             .map { it.key to networkConnections(it.value) }
 
-        val networkTable = Table(formatting)
-            .column("USER", width = 15)
-            .column("COMMAND", width = 7)
-            .column("PARENT PID", width = 10)
+        val narrow = terminalWidth < 110
+
+        val networkTable = Table(formatting, terminalWidth)
+            .column("USER", width = if (narrow) { 10 } else { 15 })
+            .column("COMMAND", width = if (narrow) { 7 } else { 15 })
+            .optionalColumn(!narrow, "PARENT PID", width = 10)
             .column("PID", width = 10)
-            .column("TYPE", width = 4)
-            .column("PROTO", width = 6)
-            .column("CONNECTION", width = 60)
+            .optionalColumn(!narrow, "TYPE", width = 4)
+            .optionalColumn(!narrow, "PROTO", width = 6)
+            .column("CONNECTION", consumeRemainingWidth = true)
 
         networkTable.printHeading()
 
@@ -155,11 +181,11 @@ class LSOFReporter(private val userResolver: UserResolver,
     }
 
     fun processReport(pid: Int) {
-        val processTable = Table(formatting)
+        val processTable = Table(formatting, terminalWidth)
             .column("PARENT PID", width = 10)
             .column("PID", width = 10)
             .column("USER", width = 20)
-            .column("COMMAND", width = 40)
+            .column("COMMAND", consumeRemainingWidth = true)
 
         processTable.printHeading()
 
@@ -175,11 +201,11 @@ class LSOFReporter(private val userResolver: UserResolver,
             )
 
             println()
-            val fileTable = Table(formatting)
+            val fileTable = Table(formatting, terminalWidth)
                 .column("DESCRIPTOR", width = 10)
                 .column("TYPE", width = 10)
                 .column("PROTO", width = 6)
-                .column("NAME", width = 80)
+                .column("NAME", consumeRemainingWidth = true)
 
             fileTable.printHeading()
 
