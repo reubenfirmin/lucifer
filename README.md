@@ -49,6 +49,7 @@ Beta.
 
 ## roadmap
 
+* highlight process list by common parent
 * color coding for all ranges (generalize logic)
 * --parent flag to order by parent / parent tree
 * smart coloring in the reports to highlight things worth noticing
