@@ -12,9 +12,10 @@ import kotlin.math.min
  * Generate various reports from the data.
  */
 class LSOFReporter(private val userResolver: UserResolver,
+                   private val processResolver: ProcessResolver,
                    private val recs: Map<Int, ProcessRecord>,
                    private val formatting: Boolean,
-                   private val buffer: ByteArray) {
+                   buffer: ByteArray) {
 
     private val records: List<ProcessRecord> =recs.values
         .sortedByDescending { it.files.size }
@@ -49,6 +50,9 @@ class LSOFReporter(private val userResolver: UserResolver,
         fun rangeColor(idx: Int) = Color.scale1[min((idx / bucketSize), fileSizeColors - 1)]
 
         val numberMostCommonCommands = Color.highlights.size
+
+        // TODO maybe split command and args...? or handle metadata commands here in case of "wide"
+        // TODO get max command length
         val commands = records
             .asSequence()
             .map { it.command }
@@ -60,6 +64,8 @@ class LSOFReporter(private val userResolver: UserResolver,
             .withIndex()
             .associate { it.value to Color.highlights[it.index] }
 
+        val wide = terminalWidth > 100
+
         val rawTable = Table(formatting, terminalWidth)
                 .column("PARENT PID", width = 10)
                 .column("PID", width = 10)
@@ -67,6 +73,9 @@ class LSOFReporter(private val userResolver: UserResolver,
                 .column("FILES", width = 8) { idx, _, size ->
                     ansiFg(rangeColor(idx), size)
                 }
+                .optionalColumn(wide, "CPU", width = 5) // TODO generalize color ranges on these
+                .optionalColumn(wide, "MEM", width = 5)
+                .optionalColumn(wide, "TIME", width = 8)
                 .column("COMMAND", consumeRemainingWidth = true) { _, rawCommand, paddedCommand ->
                     val commandCol = commands[rawCommand]
 
@@ -81,12 +90,17 @@ class LSOFReporter(private val userResolver: UserResolver,
         rawTable.printHeading()
 
         records.forEachIndexed { idx, record ->
+            val metadata = processResolver.process(record.pid)
+
             rawTable.printRow(idx,
                 record.parentPid.toString(),
                 record.pid.toString(),
                 userResolver.user(record.user),
                 record.files.size.toString(),
-                record.command)
+                metadata?.cpu?.toString() ?: "",
+                metadata?.memory?.toString() ?: "",
+                metadata?.cpuTime?.toString() ?: "",
+                if (wide && metadata != null) { metadata.command } else { record.command })
         }
     }
 

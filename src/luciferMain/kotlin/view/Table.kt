@@ -2,9 +2,9 @@ package view
 
 import io.IOHelpers.ansiUnderline
 import kotlin.math.max
-import kotlin.math.min
 
 /**
+ * TODO smart wrapping in table
  * @param formatting if true, use color to format
  * @param maxWidth terminal width (TODO doesn't fully obey this yet)
  */

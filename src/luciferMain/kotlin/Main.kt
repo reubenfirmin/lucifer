@@ -1,5 +1,6 @@
 import io.IOHelpers.printErr
 import io.IOHelpers.readLine
+import model.ProcessMetadata
 import view.ProgressSpinner
 
 fun main(args: Array<String>) {
@@ -43,7 +44,8 @@ fun main(args: Array<String>) {
 
         if (!parser.parseLine(line)) {
             spinner.clear()
-            val reporter = LSOFReporter(UserResolver(buffer), parser.yieldData(), !noformat, buffer)
+            val reporter = LSOFReporter(UserResolver(buffer), ProcessResolver(buffer),
+                parser.yieldData(), !noformat, buffer)
             // summarization mode
             if (processes.isEmpty()) {
                 reporter.byProcessReport()
