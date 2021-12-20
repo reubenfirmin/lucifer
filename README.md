@@ -1,6 +1,6 @@
-# lucifer 0.2
+# lucifer 0.3
 
-The goal of this tool is to parse **lsof** output, and provide useful summarization. PRs welcomed.
+The goal of this tool is to parse **lsof** output, and to provide useful summarization. PRs welcomed.
 
 ## reports
 
