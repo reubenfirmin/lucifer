@@ -26,7 +26,7 @@ A list of all UDP and TCP information, by user. Some columns are truncated to gi
 Lucifer parses the output of lsof -F. Any other argument provided to lsof may result in the parsing crashing.
 
 ```
-lsof -F | ./lucifer
+sudo lsof -F | ./lucifer
 
 OR
 
