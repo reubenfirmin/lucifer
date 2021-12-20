@@ -52,9 +52,8 @@ Beta.
 * color coding for all ranges (generalize logic)
 * smart wrapping within table columns
 * --parent flag to order by parent / parent tree
-* Smart coloring in the extra reports
-* Get full command (and other metadata) from ps
-* Somehow match colors to user terminal (right now assumes dark background)
+* smart coloring in the reports to highlight things worth noticing
+* somehow match colors to user terminal (right now assumes dark background)
 * ncurses based UI for browsing different reports / detail view
 
 # kotlin-native
