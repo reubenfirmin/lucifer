@@ -50,7 +50,6 @@ Beta.
 ## roadmap
 
 * color coding for all ranges (generalize logic)
-* smart wrapping within table columns
 * --parent flag to order by parent / parent tree
 * Smart coloring in the extra reports
 * Get full command (and other metadata) from ps
