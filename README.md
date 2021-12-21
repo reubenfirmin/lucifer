@@ -13,7 +13,7 @@ This is a list of all processes (with associated metadata), along with the count
 A summary of the number of files, by type, by user.
 
 ### INTERNET CONNECTIONS BY USER
-A list of all UDP and TCP information, by user. Some columns are truncated to give as much room to the connection detail without wrapping.
+A list of all UDP and TCP connections, by user. Some columns may be hidden in narrow terminals.
 
 ## building
 
@@ -49,10 +49,16 @@ Beta.
 
 ## roadmap
 
-* highlight process list by common parent
-* color coding for all ranges (generalize logic)
+* smart coloring
+  * highlight process list by common parent
+  * coloring in network report by common host / open ports
+  * coloring in open files report by users with most open files?
+  * smart coloring in the reports to highlight things worth noticing
+  * color coding for all ranges (generalize logic)
 * --parent flag to order by parent / parent tree
-* smart coloring in the reports to highlight things worth noticing
+* network report improvements
+  * extended network stats using ss -tuiOp and ss -tuiOpl
+  * highlight listening ports
 * somehow match colors to user terminal (right now assumes dark background)
 * ncurses based UI for browsing different reports / detail view
 
