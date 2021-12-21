@@ -61,7 +61,7 @@ fun main(args: Array<String>) {
                 // detail mode for specific processes
             } else {
                 processes.forEach {
-                    reporter.processReport(it.toInt())
+                    reporter.processReport(it)
                     println()
                 }
             }

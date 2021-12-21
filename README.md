@@ -1,4 +1,4 @@
-# lucifer 0.4
+# lucifer 0.5
 
 The goal of this tool is to parse **lsof** output, and to provide useful summarization. PRs welcomed.
 

@@ -1,8 +1,6 @@
 package view
 
 import io.Color
-import io.Color.*
-import io.IOHelpers.ansiColor
 import io.IOHelpers.ansiFg
 import io.IOHelpers.ansiUnderline
 import io.IOHelpers.runCommand
@@ -25,9 +23,27 @@ class LuciferReporter(
         })
     }
 
+    private val parents = querier.topNParents(Color.highlights.size)
+        .map { it.index to it.value.toString() }
+        .associate { it.second to Color.highlights[it.first] }
+
+    private val parentPidFormatter: (Int, String, String) -> String = { _, raw, padded ->
+        // look up the string version of the pid to see if it's one of the most popular parents
+        val parentCol = parents[raw]
+
+        if (parentCol != null) {
+            ansiFg(parentCol, padded)
+        } else {
+            padded
+        }
+    }
+
+    private val numeric = "^[0-9]*$".toRegex()
+
     private val terminalWidth: Int
 
     init {
+        // TODO move this out
         val width = runCommand("tput cols", buffer)
         terminalWidth = width.toInt()
     }
@@ -43,26 +59,8 @@ class LuciferReporter(
          */
         fun rangeColor(idx: Int) = Color.scale1[min((idx / bucketSize), fileSizeColors - 1)]
 
-        val parents = querier.topNParents(Color.highlights.size)
-            .map { it.index to it.value.toString() }
-            .associate { it.second to Color.highlights[it.first] }
 
         val wide = terminalWidth > 100
-
-        val parentPidFormatter: (Int, String, String) -> String = { _, raw, padded ->
-
-            // look up the string version of the pid to see if it's one of the most popular parents
-            val parentCol = parents[raw]
-
-            if (parentCol != null) {
-                // it's ugly to highlight the padding, so calculate how much padding was added and re-add
-                // TODO probably want to change the formatted interface to make this less redundant
-                val padding = " ".repeat(padded.length - raw.length)
-                ansiColor(BLACK, parentCol, raw) + padding
-            } else {
-                padded
-            }
-        }
 
         val rawTable = Table(formatting, terminalWidth)
                 .column("PARENT PID", width = 10, rowFormatter = parentPidFormatter)
@@ -97,7 +95,6 @@ class LuciferReporter(
     fun fileTypeUserReport() {
         reportHeading("OPEN FILES BY TYPE BY USER")
 
-
         val userTypeTable = Table(formatting, terminalWidth)
             .column("USER")
             .column("TYPE")
@@ -125,8 +122,8 @@ class LuciferReporter(
         val networkTable = Table(formatting, terminalWidth)
             .column("USER", width = if (narrow) { 10 } else { 15 })
             .column("COMMAND", width = if (narrow) { 7 } else { 15 })
-            .optionalColumn(!narrow, "PARENT PID", width = 10)
-            .column("PID", width = 10)
+            .optionalColumn(!narrow, "PARENT PID", width = 10, rowFormatter = parentPidFormatter)
+            .column("PID", width = 10, rowFormatter = parentPidFormatter)
             .optionalColumn(!narrow, "TYPE", width = 4)
             .optionalColumn(!narrow, "PROTO", width = 6)
             .column("CONNECTION", consumeRemainingWidth = true)
@@ -151,38 +148,51 @@ class LuciferReporter(
         }
     }
 
-    fun processReport(pid: Int) {
+    fun processReport(pidOrName: String) {
         val processTable = Table(formatting, terminalWidth)
-            .column("PARENT PID", width = 10)
-            .column("PID", width = 10)
+            .column("PARENT PID", width = 10, rowFormatter = parentPidFormatter)
+            .column("PID", width = 10, rowFormatter = parentPidFormatter)
             .column("USER", width = 20)
+            .column("CPU", width = 4)
+            .column("MEM", width = 4)
+            .column("CPUTIME", width = 8)
             .column("COMMAND", consumeRemainingWidth = true)
 
-        processTable.printHeading()
+        val fileTable = Table(formatting, terminalWidth)
+            .column("DESCRIPTOR", width = 10)
+            .column("TYPE", width = 10)
+            .column("PROTO", width = 6)
+            .column("NAME", consumeRemainingWidth = true)
 
-        val processRecord = querier.processWithMetadata(pid)
-
-        if (processRecord == null) {
-            println("Process $pid not found")
+        val processRecords = if (numeric.matches(pidOrName)) {
+            listOfNotNull(querier.processWithMetadata(pidOrName.toInt()))
         } else {
+            querier.processesByCommand(pidOrName)
+        }
+
+        if (processRecords.isEmpty()) {
+            println("Process $pidOrName not found")
+            return
+        }
+
+        processRecords.forEach { processRecord ->
+            println("PROCESS ${processRecord.record.pid} ATTRIBUTES")
+            processTable.printHeading()
             processRecord.apply {
                 processTable.printRow(0,
                     record.parentPid.toString(),
                     record.pid.toString(),
                     userName,
+                    metadata?.cpu.toString(),
+                    metadata?.memory.toString(),
+                    metadata?.cpuTime.toString(),
                     metadata?.command ?: record.command
                 )
             }
 
             println()
-            val fileTable = Table(formatting, terminalWidth)
-                .column("DESCRIPTOR", width = 10)
-                .column("TYPE", width = 10)
-                .column("PROTO", width = 6)
-                .column("NAME", consumeRemainingWidth = true)
-
+            println("PROCESS ${processRecord.record.pid} OPEN FILES")
             fileTable.printHeading()
-
             processRecord.record.files
                 .sortedBy { it.name }
                 .forEachIndexed { idx, file ->
@@ -193,6 +203,8 @@ class LuciferReporter(
                         file.name
                     )
                 }
+            println()
+            println()
         }
     }
 }

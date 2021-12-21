@@ -94,6 +94,13 @@ class ProcessesQuerier(private val data: Map<Int, ProcessRecord>,
      */
     fun numRecords() = records.size
 
+    /**
+     * Processes with the specified command
+     */
+    fun processesByCommand(command: String) = records
+        .filter { it.command == command }
+        .map { it.enhance() }
+
     private fun ProcessRecord.enhance() =
         EnhancedProcess(this, processResolver.process(this.pid), userResolver.user(this.user))
 
