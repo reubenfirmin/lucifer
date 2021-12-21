@@ -8,7 +8,7 @@ import service.UserResolver
 import view.ProgressSpinner
 
 fun main(args: Array<String>) {
-    val spinner = ProgressSpinner("Lucifer 0.4 - now reading from stdin")
+    val spinner = ProgressSpinner("Lucifer 0.5 - now reading from stdin")
 
     val bufferLen = 4096
     val buffer = ByteArray(bufferLen)
