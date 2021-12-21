@@ -1,4 +1,4 @@
-# lucifer 0.3
+# lucifer 0.4
 
 The goal of this tool is to parse **lsof** output, and to provide useful summarization. PRs welcomed.
 
@@ -8,6 +8,8 @@ It currently provides 3 reports:
 
 ### OPEN FILES BY PROCESS
 This is a list of all processes (with associated metadata), along with the count of files opened by that process. Note that child processes may have files in common with each other.
+
+The top 5 most common parent PIDs are highlighted so that you can quickly see groups of associated processes.
 
 ### OPEN FILES BY TYPE BY USER
 A summary of the number of files, by type, by user.
