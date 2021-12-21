@@ -1,4 +1,4 @@
-# lucifer 0.4
+# lucifer 0.5
 
 The goal of this tool is to parse **lsof** output, and to provide useful summarization. PRs welcomed.
 
@@ -40,9 +40,10 @@ cat detail.txt | lucifer --process 123 --process=5233
 ### optional arguments
 
 ```
---err           : send input from stdin through to stderr
---noformat      : turn off color highlighting
---process={pid} : full report on a specific process (may be repeated, e.g. --process=1 --process=2)
+--err               : send input from stdin through to stderr
+--noformat          : turn off color highlighting
+--process={pid}     : full report on a specific process (may be repeated, e.g. --process=1 --process=2)
+--process={command} : full report on processes matching a particular command (main be repeated, e.g. --process=chrome, --process=firefox)
 ```
 
 ## status
