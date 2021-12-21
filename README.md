@@ -50,7 +50,6 @@ Beta.
 ## roadmap
 
 * smart coloring
-  * highlight process list by common parent
   * coloring in network report by common host / open ports
   * coloring in open files report by users with most open files?
   * smart coloring in the reports to highlight things worth noticing

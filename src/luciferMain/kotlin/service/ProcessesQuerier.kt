@@ -21,16 +21,30 @@ class ProcessesQuerier(private val data: Map<Int, ProcessRecord>,
     /**
      * Get the top N unique commands
      */
-    // TODO maybe split command and args...? or handle metadata commands here in case of "wide"
+    // TODO not currently used; maybe split command and args...? or handle metadata commands here
+    //  in case of "wide"
     fun topNCommands(n: Int) = records
-            .asSequence()
-            .map { it.command }
-            .groupBy { it }
-            .map { it.value }
-            .sortedByDescending { it.size }
-            .take(n)
-            .map { it.first() }
-            .withIndex()
+        .asSequence()
+        .map { it.command } // raw list of commands
+        .groupBy { it } // command -> List<command>
+        .map { it.value } // List<List<command>>
+        .sortedByDescending { it.size }
+        .take(n)
+        .map { it.first() }
+        .withIndex()
+
+    /**
+     * Get the top N most common parents
+     */
+    fun topNParents(n: Int) = records
+        .asSequence()
+        .map { it.parentPid } // raw list of parents
+        .groupBy { it } // parent -> List<parent>
+        .map { it.value } // List<List<parent>>
+        .sortedByDescending { it.size }
+        .take(n)
+        .map { it.first() }
+        .withIndex()
 
     /**
      * Count of records by type, sorted descending
@@ -46,7 +60,7 @@ class ProcessesQuerier(private val data: Map<Int, ProcessRecord>,
      * User to [recordsByTypes]
      */
     fun recordsByUserByTypes() = recordsByUser
-        .map { (userResolver.user(it.key) ?: it.key.toString()) to recordsByTypes(it.value) }
+        .map { (userResolver.user(it.key)) to recordsByTypes(it.value) }
 
     /**
      * Records containing UDP/TCP connections to files containing those connections, sorted by number of connections
@@ -61,7 +75,7 @@ class ProcessesQuerier(private val data: Map<Int, ProcessRecord>,
      * User to [internetConnections]
      */
     fun internetConnectionsByUser() = recordsByUser
-        .map { (userResolver.user(it.key) ?: it.key.toString()) to internetConnections(it.value) }
+        .map { (userResolver.user(it.key)) to internetConnections(it.value) }
 
     /**
      * Records with index, and potentially additional metadata

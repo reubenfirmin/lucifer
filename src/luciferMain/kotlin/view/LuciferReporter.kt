@@ -43,14 +43,30 @@ class LuciferReporter(
          */
         fun rangeColor(idx: Int) = Color.scale1[min((idx / bucketSize), fileSizeColors - 1)]
 
-        val commands = querier.topNCommands(Color.highlights.size)
-            .associate { it.value to Color.highlights[it.index] }
+        val parents = querier.topNParents(Color.highlights.size)
+            .map { it.index to it.value.toString() }
+            .associate { it.second to Color.highlights[it.first] }
 
         val wide = terminalWidth > 100
 
+        val parentPidFormatter: (Int, String, String) -> String = { _, raw, padded ->
+
+            // look up the string version of the pid to see if it's one of the most popular parents
+            val parentCol = parents[raw]
+
+            if (parentCol != null) {
+                // it's ugly to highlight the padding, so calculate how much padding was added and re-add
+                // TODO probably want to change the formatted interface to make this less redundant
+                val padding = " ".repeat(padded.length - raw.length)
+                ansiColor(BLACK, parentCol, raw) + padding
+            } else {
+                padded
+            }
+        }
+
         val rawTable = Table(formatting, terminalWidth)
-                .column("PARENT PID", width = 10)
-                .column("PID", width = 10)
+                .column("PARENT PID", width = 10, rowFormatter = parentPidFormatter)
+                .column("PID", width = 10, rowFormatter = parentPidFormatter)
                 .column("USER", width = 20)
                 .column("FILES", width = 8) { idx, _, size ->
                     ansiFg(rangeColor(idx), size)
@@ -58,15 +74,7 @@ class LuciferReporter(
                 .optionalColumn(wide, "CPU", width = 5) // TODO generalize color ranges on these
                 .optionalColumn(wide, "MEM", width = 5)
                 .optionalColumn(wide, "TIME", width = 8)
-                .column("COMMAND", consumeRemainingWidth = true) { _, rawCommand, paddedCommand ->
-                    val commandCol = commands[rawCommand]
-
-                    if (commandCol != null) {
-                        ansiColor(BLACK, commandCol, paddedCommand)
-                    } else {
-                        paddedCommand
-                    }
-                }
+                .column("COMMAND", consumeRemainingWidth = true)
 
         rawTable.printHeading()
 
