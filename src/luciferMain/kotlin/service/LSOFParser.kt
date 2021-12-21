@@ -1,4 +1,6 @@
-import Field.*
+package service
+
+import service.Field.*
 import model.ParseState
 import model.ProcessRecord
 import kotlin.native.concurrent.freeze
@@ -37,7 +39,10 @@ class LSOFParser(private val debug: Boolean) {
                     col.mutator(parseState, if (line.length > 1) { line.substring(1) } else { "" })
                 } catch (e: Exception) {
                     println("""Error parsing $col ${line.length} 
-                        ${if (line.length > 1) { line.substring(1) } else { "" }}""")
+                        ${if (line.length > 1) { line.substring(1) } else { "" }}
+                        
+                        NOTE - are you sure you provided lsof -F on stdin?
+                        """)
                     throw e
                 }
             }
