@@ -59,7 +59,6 @@ class LuciferReporter(
          */
         fun rangeColor(idx: Int) = Color.scale1[min((idx / bucketSize), fileSizeColors - 1)]
 
-
         val wide = terminalWidth > 100
 
         val rawTable = Table(formatting, terminalWidth)
@@ -71,7 +70,7 @@ class LuciferReporter(
                 }
                 .optionalColumn(wide, "CPU", width = 5) // TODO generalize color ranges on these
                 .optionalColumn(wide, "MEM", width = 5)
-                .optionalColumn(wide, "TIME", width = 8)
+                .optionalColumn(wide, "CPUTIME", width = 8)
                 .column("COMMAND", consumeRemainingWidth = true)
 
         rawTable.printHeading()
@@ -90,6 +89,8 @@ class LuciferReporter(
                 )
             }
         }
+
+        rawTable.printPost()
     }
 
     fun fileTypeUserReport() {
@@ -112,6 +113,8 @@ class LuciferReporter(
                     typesSet.second.toString())
             }
         }
+
+        userTypeTable.printPost()
     }
 
     fun networkConnectionsReport() {
@@ -120,32 +123,68 @@ class LuciferReporter(
         val narrow = terminalWidth < 110
 
         val networkTable = Table(formatting, terminalWidth)
-            .column("USER", width = if (narrow) { 10 } else { 15 })
-            .column("COMMAND", width = if (narrow) { 7 } else { 15 })
+            .column("USER", width = 10)
+            .column("COMMAND", width = if (narrow) { 7 } else { 10 })
             .optionalColumn(!narrow, "PARENT PID", width = 10, rowFormatter = parentPidFormatter)
             .column("PID", width = 10, rowFormatter = parentPidFormatter)
             .optionalColumn(!narrow, "TYPE", width = 4)
-            .optionalColumn(!narrow, "PROTO", width = 6)
-            .column("CONNECTION", consumeRemainingWidth = true)
+            .optionalColumn(!narrow, "PRT", width = 3)
+            .optionalColumn(!narrow, "SENT", width = 8)
+            .optionalColumn(!narrow, "RECEIVED", width = 8)
+            .optionalColumn(!narrow, "TIME", width = 8)
+            .column("LOCAL", width = if (narrow) { 10 } else { 20 })
+            .column("PEER", width = if (narrow) { 10 } else { 20 })
+            .column("DETAIL", consumeRemainingWidth = true)
+
+        var index = 0
+        val networkSpinner = ProgressSpinner("Running whois on network connections")
+        val results = querier.internetConnectionsByUser{
+            networkSpinner.spin()
+        }
+        networkSpinner.clear()
 
         networkTable.printHeading()
 
-        var index = 0
-        querier.internetConnectionsByUser().forEach { userSet ->
+        results.forEach { userSet ->
             userSet.second.forEach { processSet ->
                 processSet.second.forEach { fileSet ->
+                    val networkMetadata = fileSet.second
+                    val hasMetadata = networkMetadata != null
                     networkTable.printRow(index++,
                         userSet.first,
                         processSet.first.command,
                         processSet.first.parentPid.toString(),
                         processSet.first.pid.toString(),
-                        fileSet.type,
-                        fileSet.protocol,
-                        fileSet.name
+                        fileSet.first.type,
+                        fileSet.first.protocol,
+                        fileSet.second?.bytesSent?.toString() ?: "",
+                        fileSet.second?.bytesReceived?.toString() ?: "",
+                        if (hasMetadata) {
+                            min(networkMetadata!!.lastReceived, networkMetadata.lastSent).toString()
+                        } else {
+                            ""
+                        },
+                        if (hasMetadata) {
+                            networkMetadata!!.localIp + ":" + networkMetadata.localPort
+                        } else {
+                            ""
+                        },
+                        if (hasMetadata) {
+                            networkMetadata!!.peerIp + ":" + networkMetadata.peerPort
+                        } else {
+                            ""
+                        },
+                        if (hasMetadata) {
+                            networkMetadata!!.org ?: ""
+                        } else {
+                            fileSet.first.name
+                        }
                     )
                 }
             }
         }
+
+        networkTable.printPost()
     }
 
     fun processReport(pidOrName: String) {

@@ -22,12 +22,11 @@ class ProcessResolver(buffer: ByteArray) {
                         it.subList(4, it.size).joinToString(" "))
                 }.associateBy { it.pid }
         } catch (e: Exception) {
+            println("ERROR - couldn't initialize process resolver. Maybe ps has different args on this system?")
             e.printStackTrace()
             mapOf()
         }
     }
-
-    fun initialized() = processes.size > 0
 
     fun process(pid: Int) = processes[pid]
 }

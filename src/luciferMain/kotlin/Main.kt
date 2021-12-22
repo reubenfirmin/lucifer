@@ -1,10 +1,7 @@
 import io.IOHelpers.printErr
 import io.IOHelpers.readLine
-import service.LSOFParser
+import service.*
 import view.LuciferReporter
-import service.ProcessResolver
-import service.ProcessesQuerier
-import service.UserResolver
 import view.ProgressSpinner
 
 fun main(args: Array<String>) {
@@ -49,7 +46,9 @@ fun main(args: Array<String>) {
         if (!parser.parseLine(line)) {
             spinner.clear()
             val reporter = LuciferReporter(
-                ProcessesQuerier(parser.yieldData(), UserResolver(buffer), ProcessResolver(buffer)), !noformat, buffer)
+                ProcessesQuerier(parser.yieldData(), UserResolver(buffer), ProcessResolver(buffer),
+                    NetworkProcessResolver(buffer, WhoisResolver(buffer))
+                ), !noformat, buffer)
 
             // summarization mode
             if (processes.isEmpty()) {
