@@ -5,13 +5,16 @@ import view.Table.VisibleColumn.Companion.defaultFormatter
 import kotlin.math.max
 import kotlin.math.min
 
+
+const val HEADING_IDX = -1
+
 /**
  * @param formatting if true, use color to format
  * @param maxWidth terminal width (TODO doesn't fully obey this yet)
  */
 class Table(val formatting: Boolean, val maxWidth: Int) {
 
-    private interface Column {
+    interface Column {
         val prePadding: Int
             get() = 0
         val width: Int
@@ -28,8 +31,8 @@ class Table(val formatting: Boolean, val maxWidth: Int) {
         var bufferLen = 0
         var bufferReadIdx = 0
 
-        fun cellFormatter(formatting: Boolean, heading: Boolean, rowIndex: Int) = if (formatting) {
-            if (heading) {
+        fun cellFormatter(formatting: Boolean, rowIndex: Int) = if (formatting) {
+            if (rowIndex == HEADING_IDX) {
                 headingFormatter
             } else {
                 // don't format -1
@@ -50,7 +53,8 @@ class Table(val formatting: Boolean, val maxWidth: Int) {
 
     private class Sink: Column
 
-    private val columns = ArrayList<Column>()
+    // visible for testing
+    val columns = ArrayList<Column>()
 
     /**
      * Formatters - if specified, special formatting to apply to the provided padded value. Params are index, raw value,
@@ -68,7 +72,7 @@ class Table(val formatting: Boolean, val maxWidth: Int) {
     fun column(heading: String,
                headingFormatter: (Int, String, String) -> String = { _, _, str -> ansiUnderline(str) },
                width: Int = 20,
-               prePadding: Int = if (maxWidth < 80) { 1 } else { 5 },
+               prePadding: Int = if (maxWidth < 80) { 1 } else { 2 },
                consumeRemainingWidth: Boolean = false,
                rowFormatter: (Int, String, String) -> String = defaultFormatter): Table {
 
@@ -104,17 +108,26 @@ class Table(val formatting: Boolean, val maxWidth: Int) {
     }
 
     fun printHeading() {
-        printRow(-1, true, *columns.map { if (it is VisibleColumn) { it.heading } else { "" } }.toTypedArray())
+        row(HEADING_IDX, columns.map { if (it is VisibleColumn) { it.heading } else { "" } }.toTypedArray())
+            .forEach { println(it) }
+    }
+
+    fun printRow(index: Int, vararg data: String) {
+        row(index, data as Array<String>)
+            .forEach { println(it) }
+    }
+
+    fun printPost() {
+        if (columns.firstOrNull { it.width == 0 } != null) {
+            println(">>> One or more columns were hidden due to terminal width")
+        }
     }
 
     /**
      * If index is -1, row formatter will be skipped
      */
-    fun printRow(index: Int, vararg data: String) {
-        printRow(index, false, *data)
-    }
+    fun row(rowIndex: Int, data: Array<String>): List<String> {
 
-    private fun printRow(rowIndex: Int, heading: Boolean = false, vararg data: String) {
         var dataToRender = false
         data.forEachIndexed { idx, item ->
             val column = columns[idx]
@@ -126,29 +139,32 @@ class Table(val formatting: Boolean, val maxWidth: Int) {
             }
         }
 
+        val buffer = StringBuilder()
+        val result = mutableListOf<String>()
         // take multiple passes to allow wrapping within columns
         while (dataToRender) {
+            buffer.clear()
             var dataRemaining = false
             for (idx in 0 until data.size) {
                 val column = columns[idx]
-                if (column.prePadding >= 0) {
-                    print("".padEnd(column.prePadding, ' '))
+                if (column.prePadding >= 0 && column.width > 0) {
+                    buffer.append("".padEnd(column.prePadding, ' '))
                 }
 
-                if (column is VisibleColumn) {
+                if (column is VisibleColumn && column.width > 0) {
                     val item = column.buffer.slice(column.bufferReadIdx until
                             min(column.bufferReadIdx + column.width, column.bufferLen)).toString()
 
                     column.bufferReadIdx += item.length
-                    print(column.cellFormatter(formatting, heading, rowIndex)
+                    buffer.append(column.cellFormatter(formatting, rowIndex)
                         .invoke(rowIndex, item,item.padEnd(column.width, ' ')))
 
                     dataRemaining = dataRemaining || column.bufferReadIdx < column.bufferLen
                 }
             }
             dataToRender = dataRemaining
-            println()
+            result.add(buffer.toString())
         }
-
+        return result
     }
 }

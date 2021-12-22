@@ -37,4 +37,7 @@ kotlin {
         }
         val luciferTest by getting
     }
+
+    // this is here to fool intellij into being able to run tests
+    jvm {}
 }

@@ -8,7 +8,8 @@ import model.ProcessRecord
  */
 class ProcessesQuerier(private val data: Map<Int, ProcessRecord>,
                        private val userResolver: UserResolver,
-                       private val processResolver: ProcessResolver) {
+                       private val processResolver: ProcessResolver,
+                       private val networkProcessResolver: NetworkProcessResolver) {
 
     private val records: List<ProcessRecord> = data.values
         .sortedByDescending { it.files.size }
@@ -65,17 +66,22 @@ class ProcessesQuerier(private val data: Map<Int, ProcessRecord>,
     /**
      * Records containing UDP/TCP connections to files containing those connections, sorted by number of connections
      */
-    fun internetConnections(recs: List<ProcessRecord>) = recs
-        .map { it to it.files.filter { file ->
-            file.protocol in internetProtocols
-        }}.filter { it.second.isNotEmpty() }
-          .sortedBy { it.second.size }
+    fun internetConnections(recs: List<ProcessRecord>, feedback: () -> Unit = {}) = recs
+        .map { proc ->
+            proc to proc.files.filter { file ->
+                file.protocol in internetProtocols
+            }.map { file ->
+                file to networkProcessResolver.networkProcess(proc.pid, file.descriptor, feedback)
+            }
+        }.filter {
+            it.second.isNotEmpty()
+        }.sortedBy { it.second.size }
 
     /**
      * User to [internetConnections]
      */
-    fun internetConnectionsByUser() = recordsByUser
-        .map { (userResolver.user(it.key)) to internetConnections(it.value) }
+    fun internetConnectionsByUser(feedback: () -> Unit = {}) = recordsByUser
+        .map { (userResolver.user(it.key)) to internetConnections(it.value, feedback) }
 
     /**
      * Records with index, and potentially additional metadata
