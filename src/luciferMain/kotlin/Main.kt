@@ -1,6 +1,8 @@
 import io.IOHelpers.printErr
 import io.IOHelpers.readLine
 import service.*
+import ncurses.*
+import view.CursesUI
 import view.LuciferReporter
 import view.ProgressSpinner
 
@@ -14,10 +16,17 @@ fun main(args: Array<String>) {
     val debug = args.contains("--debug")
     val err = args.contains("--err")
     val noformat = args.contains("--noformat")
+    val curse = args.contains("--curses")
     val processes = args.filter {
         it.startsWith("--process=")
     }.map {
         it.substring(10)
+    }
+
+    if (curse) {
+        val ui = CursesUI()
+        ui.show()
+        return
     }
 
     val parser = LSOFParser(debug)

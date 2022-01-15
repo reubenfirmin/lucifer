@@ -19,6 +19,8 @@ A list of all UDP and TCP connections, by user. Some columns may be hidden in na
 
 ## building
 
+On ubuntu, install `gcc-multilib`.
+
 ```
 ./build.sh
 ```
